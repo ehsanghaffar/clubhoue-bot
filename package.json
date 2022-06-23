@@ -1,0 +1,40 @@
+{
+  "name": "clubhouse-full-api",
+  "version": "1.0",
+  "main": "src/index.js",
+  "author": "Ehsan Ghaffar <info@ehsanghaffarii.ir>",
+  "license": "MIT",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "start": "node index.js",
+    "stop": "pm2 stop clubhouse-full-api",
+    "lint": "eslint --ext .js,.d.ts ."
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.15.2",
+    "@typescript-eslint/parser": "^4.15.2",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.19.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-config-standard-with-typescript": "^20.0.0",
+    "eslint-import-resolver-node": "^0.3.4",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.3.1",
+    "typescript": "^4.1.5"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "cors": "^2.8.5",
+    "cron": "^2.0.0",
+    "cross-fetch": "^3.0.6",
+    "debug": "^4.3.1",
+    "esm": "^3.2.25",
+    "express": "^4.18.1",
+    "form-data": "^3.0.0",
+    "moment": "^2.29.3",
+    "nanoid": "^3.1.20",
+    "qs": "^6.9.6",
+    "uuid": "^8.3.2"
+  }
+}

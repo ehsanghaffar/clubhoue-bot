@@ -9,20 +9,19 @@ const router = express.Router()
 const fs = require('fs')
 const path = require('path')
 
-const { Client, profiles } = require('../src')
-const {
-  pomodoroTimer,
-  sendChannelMessage
-} = require('../src/utils/pomodoro-alert')
+const { Client, profiles } = require('..')
+// const {
+//   pomodoroTimer,
+//   sendChannelMessage
+// } = require('../utils/pomodoro-alert')
 
 const profile = {
-  ...profiles.application.lastVersion,
-  ...profiles.locales.English
+  ...profiles.application.lastVersion
 }
 
 const club = new Client({ profile })
 
-const profileLoc = path.join(__dirname, '../profile.json')
+const profileLoc = path.join(__dirname, '../../profile.json')
 let ctx = false
 
 if (fs.existsSync(profileLoc)) {
@@ -43,28 +42,25 @@ const GetChannels = async (req, res) => {
 const JoinToChannel = async (req, res) => {
   const ch = req.query.channel
   const joinReq = await club.joinChannel({ channel: ch, source: 'feed' })
-  club.debug(joinReq)
-  res.send(joinReq)
   if (joinReq.success) {
     handleActivePing(ch)
-    await pomodoroTimer
+  } else {
+    console.log('joinReq.error', joinReq)
   }
+  res.send(joinReq)
 }
 
 // active ping loop for room
 const handleActivePing = async (channel) => {
-  let shouldLeave = true
-  while (shouldLeave) {
-    const ping = club.debug(await club.activePing({ channel: channel }))
-    await pomodoroTimer
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve()
-      }, 60000)
-    })
-    if (ping) {
-      shouldLeave = ping.should_leave
-    }
+  const ping = await club.activePing({ channel })
+  club.debug(ping)
+  if (ping.success) {
+    setTimeout(() => {
+      handleActivePing(channel)
+    }, 240000)
+  }
+  if (ping.should_leave) {
+    await club.joinChannel({ channel: channel, source: 'feed' })
   }
 }
 
@@ -120,6 +116,6 @@ router.get('/channels', GetChannels)
 // Change profile route
 router.post('/change-profile', changeProfile)
 
-router.post('/send-channel-message', sendChannelMessage)
+// router.post('/send-channel-message', sendChannelMessage)
 
 module.exports = router

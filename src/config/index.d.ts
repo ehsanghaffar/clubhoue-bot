@@ -4,7 +4,6 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-interface Locale { languages?: string, locale?: string, acceptLanguages?: string }
 interface Application {
   apiRoot?: string
   userAgent?: string
@@ -17,6 +16,9 @@ interface Application {
   pubnubSubKey?: string
   pubnubSDK?: string
   acceptEncodings?: string
+  languages?: string
+  locale?: string
+  acceptLanguages?: string
 }
 
 interface Debug {
@@ -34,7 +36,7 @@ interface Tokens {
   auth?: string
 }
 
-type Profile = Application & Locale & {
+type Profile = Application & {
   token?: string
   userId?: string
   deviceId?: string
@@ -49,4 +51,3 @@ type Profile = Application & Locale & {
 }
 
 export declare const application: { lastVersion: Application }
-export declare const locales: { English: Locale, Korean: Locale }

@@ -10,8 +10,7 @@ const moment = require('moment')
 const { Client, profiles } = require('../')
 
 const profile = {
-  ...profiles.application.lastVersion,
-  ...profiles.locales.English
+  ...profiles.application.lastVersion
 }
 
 const club = new Client({ profile })

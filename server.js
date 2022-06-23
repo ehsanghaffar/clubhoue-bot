@@ -9,7 +9,7 @@ app.use(bodyParser.urlencoded({ extended: true }))
 app.use(cors())
 app.use(bodyParser.json())
 const server = http.createServer(app)
-const singleRoutes = require('./routes/routes')
+const singleRoutes = require('./src/routes/routes')
 
 app.get('/', (req, res) => {
   res.send('Hello World!')

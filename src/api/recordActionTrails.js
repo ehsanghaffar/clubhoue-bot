@@ -6,7 +6,7 @@
  */
 import { v4 as uuidv4 } from 'uuid'
 
-import agent from '../structures/agent'
+import agent from '../helper/agent'
 
 const recordActionTrails = async (profile, opts) => {
   'use strict'

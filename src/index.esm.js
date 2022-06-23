@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import * as api from './api'
-import * as profiles from './profiles'
-import * as structures from './structures'
+import * as profiles from './config'
+import * as structures from './helper'
 
 const {
   agent,

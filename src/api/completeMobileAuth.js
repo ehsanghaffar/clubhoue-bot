@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 // NOTE: This Feature is not available in the current version of the API
-import agent from '../structures/agent'
+import agent from '../helper/agent'
 
 const completeMobileAuth = async (profile, phoneNumber, code) => {
   'use strict'

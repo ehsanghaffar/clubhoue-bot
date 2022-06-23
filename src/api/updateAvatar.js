@@ -7,7 +7,7 @@
 import FormData from 'form-data'
 import { customAlphabet } from 'nanoid'
 
-import agent from '../structures/agent'
+import agent from '../helper/agent'
 
 const random = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 16)
 

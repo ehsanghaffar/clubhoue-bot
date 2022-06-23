@@ -8,9 +8,7 @@ import * as glob from 'glob'
 require('dotenv').config()
 
 export const projName = 'clubhouse-full-api'
-export const projDir = path.resolve(__dirname, '../..')
-// export const coverageDir = path.resolve(path.join(projDir, 'coverage'))
-// export const libDir = path.resolve(path.join(projDir, 'libs'))
+export const projDir = path.resolve(__dirname, '../')
 export const appsDir = path.resolve(path.join(projDir, 'src'))
 export const routeDir = path.resolve(path.join(projDir, 'routes'))
 export const projPkgJson = require(path.join(projDir, 'package.json'))

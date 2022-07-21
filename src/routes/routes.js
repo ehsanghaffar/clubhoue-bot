@@ -57,9 +57,10 @@ const handleActivePing = async (channel) => {
   if (ping.success) {
     setTimeout(() => {
       handleActivePing(channel)
-    }, 240000)
+    }, 180000)
   }
   if (ping.should_leave) {
+    console.log('should_leave', ping)
     await club.joinChannel({ channel: channel, source: 'feed' })
   }
 }

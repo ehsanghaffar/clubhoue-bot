@@ -1,0 +1,12 @@
+version: '2'
+services: 
+    club:
+      build:
+          context: .
+      env_file: ./.env
+      command: yarn start
+      volumes: 
+          - .:/app/
+          - /app/node_modules
+      ports:
+          - "4004:4000"

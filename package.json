@@ -1,7 +1,7 @@
 {
   "name": "clubhouse-full-api",
   "version": "1.0",
-  "main": "src/index.js",
+  "main": "server.js",
   "author": "Ehsan Ghaffar <info@ehsanghaffarii.ir>",
   "license": "MIT",
   "types": "src/index.d.ts",

@@ -8,6 +8,7 @@ const express = require('express')
 const router = express.Router()
 const fs = require('fs')
 const path = require('path')
+const auth = require('../middlewares/auth')
 
 const { Client, profiles } = require('..')
 // const {
@@ -33,10 +34,10 @@ if (fs.existsSync(profileLoc)) {
 }
 
 // get All Available rooms
-const GetChannels = async (req, res) => {
-  const channels = await club.getChannels()
-  res.send(channels)
-}
+// const GetChannels = async (req, res) => {
+//   const channels = await club.getChannels()
+//   res.send(channels)
+// }
 
 // Join to specific room
 const JoinToChannel = async (req, res) => {
@@ -109,11 +110,21 @@ const changeProfile = async (req, res) => {
 // router.get('/pomodoro', pomodoroTest)
 
 // Join channel route
-router.post('/join', JoinToChannel)
+router.post('/join', auth,JoinToChannel)
 // Leave channel route
 router.post('/leave', LeaveChannel)
+
 // Get channels route
-router.get('/channels', GetChannels)
+router.get('/channels', auth, async (req, res) => {
+  try {
+    const channels = await club.getChannels()
+    res.send(channels)
+  } catch (error) {
+    console.log(error)
+    res.status(500).send("Error")
+  }
+})
+
 // Change profile route
 router.post('/change-profile', changeProfile)
 

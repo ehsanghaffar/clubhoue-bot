@@ -1,0 +1,12 @@
+{
+  "/api/*": {
+    "changeOrigin": true,
+    "headers": {
+      "x-forwarded-host": "127.0.0.1:8088",
+      "x-forwarded-proto": "http"
+    },
+    "logLevel": "debug",
+    "secure": false,
+    "target": "http://localhost:4000"
+  }
+}

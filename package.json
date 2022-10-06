@@ -7,6 +7,7 @@
   "types": "src/index.d.ts",
   "scripts": {
     "start": "node server.js",
+    "start:proxy": "node server.js --proxy-config proxy-config.json",
     "stop": "pm2 stop clubhouse-full-api",
     "lint": "eslint --ext .js,.d.ts .",
     "<----- Utils Related ----->": "",

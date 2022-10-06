@@ -6,7 +6,7 @@
  */
 import agent from '../helper/agent'
 
-const getProfile = async (profile, id) => {
+const getUser = async (profile, id) => {
   'use strict'
 
   const response = await agent(
@@ -23,7 +23,7 @@ const getProfile = async (profile, id) => {
   return data
 }
 
-export default getProfile
+export default getUser
 
 export const specification = {
   user_profile: {

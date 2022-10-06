@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
-const url = 'mongodb+srv://mongoUser1:MongodbPass@cluster0.rnytx.mongodb.net/?retryWrites=true&w=majority'
+// const url = 'mongodb+srv://mongoUser1:MongodbPass@cluster0.rnytx.mongodb.net/?retryWrites=true&w=majority'
+const url = 'mongodb://localhost:27020/test'
 
 module.exports = async () => {
 

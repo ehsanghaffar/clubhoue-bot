@@ -6,15 +6,14 @@
  */
 import agent from '../helper/agent'
 
-const acceptSpeakerInvite = async (profile, channel, userId) => {
+const acceptSpeakerInvite = async (profile, channel) => {
   'use strict'
 
   const response = await agent(
     '/accept_speaker_invite',
     {
       body: {
-        channel,
-        userId
+        channel: channel
       }
     },
     profile

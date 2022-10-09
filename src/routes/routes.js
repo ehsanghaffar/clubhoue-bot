@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const auth = require("../middlewares/auth");
 const TokenModel = require('../models/token')
+const channelController = require('../controllers/channel.controller')
 
 const { Client, profiles } = require("..");
 
@@ -120,37 +121,32 @@ const getUserToken = async (name) => {
 }
 
 // join with db user
-router.post('/join_room', async (req, res) => {
-  const username = req.body.username
-  const channel = req.body.channel
-  try {
-    const user = await getUserToken(username)
-    profile.token = user.token;
-    const joinResult = await club.joinChannel({ channel: channel, source: "feed" });
-    const active = await newActivePing(channel)
-    club.debug(active)
-    res.send(joinResult)
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Error");
-  }
-})
+// router.post('/join_room', async (req, res) => {
+//   const username = req.body.username
+//   const channel = req.body.channel
+//   try {
+//     const user = await getUserToken(username)
+//     profile.token = user.token;
+//     const joinResult = await club.joinChannel({ channel: channel, source: "feed" });
+//     const active = await newActivePing(channel)
+//     club.debug(active)
+//     res.send(joinResult)
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send("Error");
+//   }
+// })
+
+// Join room | NEW METHOD
+router.post('/join_room', channelController.joinRoom)
+router.post('/accept_invite', channelController.acceptInvite);
 
 // Join channel route
-router.post("/join", JoinToChannel);
+// router.post("/join", JoinToChannel);
 // Leave channel route
 router.post("/leave", LeaveChannel);
 
-// Get channels route
-router.get("/channels", async (req, res) => {
-  try {
-    const channels = await club.getChannels();
-    res.send(channels);
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Error");
-  }
-});
+router.get('/channels', channelController.getFeed);
 
 router.post("/search_users", async (req, res) => {
   const query = req.body;
@@ -197,6 +193,15 @@ router.post('/get_user', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).send("Error...");
+  }
+})
+
+router.get('/all_users', async(req, res) => {
+  try {
+    const users = await TokenModel.find()
+    res.send(users)
+  } catch (error) {
+    res.status(500).send(error)
   }
 })
 

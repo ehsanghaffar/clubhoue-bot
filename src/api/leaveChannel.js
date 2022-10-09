@@ -13,8 +13,7 @@ const leaveChannel = async (profile, channel) => {
     '/leave_channel',
     {
       body: {
-        channel, // NOTE: channel-uid;
-        channel_id: null
+        channel // NOTE: channel-uid;
       }
     },
     profile

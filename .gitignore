@@ -121,3 +121,4 @@ dist
 # Jetbrains IDE
 .idea/
 .DS_Store
+__MACOSX

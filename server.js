@@ -26,6 +26,6 @@ app.use("/auth", auth);
 
 app.use("/api", singleRoutes)
 
-server.listen(4000, () => {
+server.listen(4200, () => {
   console.log('Server running at http://localhost:4000/')
 })

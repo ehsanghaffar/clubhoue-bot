@@ -6,10 +6,6 @@ const clubService = require("../services/clubApiService");
 const ClientModel = require("../models/token");
 const fetch = require('node-fetch');
 const apiUrl = "https://www.clubhouseapi.com/api/accept_speaker_invite";
-const customHeaders = {
-  "Content-Type": "application/json",
-  "Authorization": "Token 4c721c9c2f7d18b463c83a5e61df4d3d34e39d71"
-};
 
 const findClientToken = async (clientName) => {
   try {
@@ -20,14 +16,11 @@ const findClientToken = async (clientName) => {
   }
 };
 
-
-
-
 const pingingActive = async (ch) => {
 setTimeout(async function run() {
   await clubService.activePing({ ch });
-  setTimeout(run, 100000);
-}, 100000);
+  setTimeout(run, 220000);
+}, 220000);
 }
 
 // get loby feed
@@ -70,22 +63,11 @@ exports.leaveRoom = async (req, res) => {
 };
 
 exports.acceptInvite = async (req, res) => {
-  const clientName = req.body.username
-  const client = await findClientToken(clientName);
-
-  const data = {
-    channel: req.body.channel
+  const ch = req.body.channel
+  try {
+    const result = await clubService.acceptSpeakerInvite({channel: ch})
+    res.send(result)
+  } catch (error) {
+    res.status(500).send(error)
   }
-  fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Token " + client.token
-    },
-    body: JSON.stringify(data),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      res.send(data)
-    });
 };

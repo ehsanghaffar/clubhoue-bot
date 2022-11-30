@@ -2,7 +2,7 @@
   "/api/*": {
     "changeOrigin": true,
     "headers": {
-      "x-forwarded-host": "127.0.0.1:8088",
+      "x-forwarded-host": "127.0.0.1:1087",
       "x-forwarded-proto": "http"
     },
     "logLevel": "debug",

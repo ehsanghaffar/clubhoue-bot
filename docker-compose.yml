@@ -9,6 +9,6 @@ services:
           - .:/app/
           - /app/node_modules
       ports:
-          - "4004:4000"
+          - "4040:4000"
       expose:
-          - "4004"
+          - "4040"

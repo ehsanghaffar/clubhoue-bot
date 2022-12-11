@@ -11,6 +11,7 @@ const path = require("path");
 const auth = require("../middlewares/auth");
 const TokenModel = require('../models/token')
 const channelController = require('../controllers/channel.controller')
+const welcomeController = require('../controllers/welcomeChannel.controller')
 
 const { Client, profiles } = require("..");
 
@@ -141,6 +142,8 @@ const getUserToken = async (name) => {
 router.post('/join_room', channelController.joinRoom)
 router.post('/accept_invite', channelController.acceptInvite);
 router.post('/get_room_msgs', channelController.getChannelMsgs);
+
+router.post('/get_room_users', welcomeController.getChannelInfo);
 
 // Join channel route
 // router.post("/join", JoinToChannel);

@@ -8,7 +8,7 @@ const fetch = require('node-fetch');
 const apiUrl = "https://www.clubhouseapi.com/api/accept_speaker_invite";
 
 
-const findClientToken = async (clientName) => {
+exports.findClientToken = async (clientName) => {
   try {
     const client = await ClientModel.findOne({ name: clientName }).lean();
     return client;
@@ -73,7 +73,7 @@ exports.acceptInvite = async (req, res) => {
   }
 };
 
-exports.getChannelMsgs = async = (req, res) => {
+exports.getChannelMsgs = async (req, res) => {
   const ch = req.body.channel
   const order = req.body.order
   try {

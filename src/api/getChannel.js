@@ -13,8 +13,7 @@ const getChannel = async (profile, channel) => {
     '/get_channel',
     {
       body: {
-        channel: channel,
-        channel_id: null
+        channel: channel
       }
     },
     profile

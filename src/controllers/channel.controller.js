@@ -7,6 +7,7 @@ const ClientModel = require("../models/token");
 const fetch = require('node-fetch');
 const apiUrl = "https://www.clubhouseapi.com/api/accept_speaker_invite";
 
+
 const findClientToken = async (clientName) => {
   try {
     const client = await ClientModel.findOne({ name: clientName }).lean();
@@ -16,12 +17,12 @@ const findClientToken = async (clientName) => {
   }
 };
 
-const pingingActive = async (ch) => {
-setTimeout(async function run() {
-  await clubService.activePing({ ch });
-  setTimeout(run, 220000);
-}, 220000);
+const ActivePingNewMethod = (channelId) => {
+  setInterval( async () => {
+    await clubService.activePing({channelId})
+  }, 1 * 60 * 1000);
 }
+
 
 // get loby feed
 exports.getFeed = async (req, res) => {
@@ -43,7 +44,7 @@ exports.joinRoom = async (req, res) => {
   try {
     const client = await findClientToken(clientName);
     clubService.profile.token = client.token;
-    pingingActive(channel)
+    ActivePingNewMethod(channel)
     const result = await clubService.joinChannel({ channel: channel });
     res.send(result);
   } catch (error) {
@@ -71,3 +72,14 @@ exports.acceptInvite = async (req, res) => {
     res.status(500).send(error)
   }
 };
+
+exports.getChannelMsgs = async = (req, res) => {
+  const ch = req.body.channel
+  const order = req.body.order
+  try {
+    const res = await clubService.getChannelMessages({channel: ch, order: order})
+    res.send(res)
+  } catch (error) {
+    res.status(500).send(error)
+  }
+}

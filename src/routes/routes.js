@@ -140,6 +140,7 @@ const getUserToken = async (name) => {
 // Join room | NEW METHOD
 router.post('/join_room', channelController.joinRoom)
 router.post('/accept_invite', channelController.acceptInvite);
+router.post('/get_room_msgs', channelController.getChannelMsgs);
 
 // Join channel route
 // router.post("/join", JoinToChannel);

@@ -40,22 +40,19 @@ exports.findClientToken = async (clientName) => {
 //   }
 // };
 
-const newActivePing = async (channel) => {
-  try {
-    const ping = await clubService.activePing({ channel });
-    if (ping.should_leave) {
-      clubService.debug("Leave: ", ping)
-      return ping;
-    }
-    return await new Promise(resolve => setTimeout(() => resolve(newActivePing(channel)), 240000));
-  } catch (error) {
-    console.log(error)
-    return `Error: ${error}`
-  }
-};
-
-
-
+// const newActivePing = async (channel) => {
+//   try {
+//     const ping = await clubService.activePing({ channel });
+//     if (ping.should_leave) {
+//       clubService.debug("Leave: ", ping)
+//       return ping;
+//     }
+//     return await new Promise(resolve => setTimeout(() => resolve(newActivePing(channel)), 240000));
+//   } catch (error) {
+//     console.log(error)
+//     return `Error: ${error}`
+//   }
+// };
 
 // get loby feed
 exports.getFeed = async (req, res) => {
@@ -70,14 +67,26 @@ exports.getFeed = async (req, res) => {
   }
 };
 
-// join specify room
+
+const pingServer = async (channel) => {
+  const ping = await clubService.activePing({ channel })
+  
+  if (ping.should_leave) {
+    console.log('should_leave', ping)
+    await club.joinChannel({ channel: channel, source: 'feed' })
+    return;
+  }
+
+  setTimeout(() => {
+    pingServer(channel);
+  }, 180000);
+}
+
 exports.joinRoom = async (req, res) => {
-  // const clientName = req.body.username;
-  // const channel = req.body.channel;
   const { channel } = req.body
   try {
     const result = await clubService.joinChannel({ channel: channel });
-    newActivePing(channel)
+    pingServer(channel)
     res.send(result);
   } catch (error) {
     res.status(500).send(error);

@@ -31,7 +31,7 @@ if (fs.existsSync(profileLoc)) {
 }
 
 const configuration = new Configuration({
-  apiKey: "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",
+  apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 

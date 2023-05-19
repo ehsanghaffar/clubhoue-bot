@@ -9,6 +9,7 @@ const db = require('./src/config/db/db');
 // const users = require("./src/routes/users");
 // const auth = require("./src/routes/auth");
 const singleRoutes = require('./src/routes/routes')
+const chatbotRoutes = require('./src/routes/chatbot.routes')
 const port = process.env.PORT || 4000
 
 
@@ -28,6 +29,7 @@ app.get('/', (req, res) => {
 // app.use("/auth", auth);
 
 app.use("/api", singleRoutes)
+app.use("/chat", chatbotRoutes)
 
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)

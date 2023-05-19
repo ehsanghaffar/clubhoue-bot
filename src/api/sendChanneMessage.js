@@ -6,15 +6,17 @@
  */
 import agent from '../helper/agent'
 
-const sendChannelMessage = async (profile, d) => {
+const sendChannelMessage = async (profile, opts) => {
   'use strict'
-  const channel = d.channel
+
+  opts = opts || {}
+
   const res = await agent(
     '/send_channel_message',
     {
       body: {
-        channel: channel,
-        message: d.message
+        channel: opts.channel,
+        message: opts.message
       }
     },
     profile

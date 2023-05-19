@@ -6,14 +6,15 @@
  */
 import agent from '../helper/agent'
 
-const leaveChannel = async (profile, channel) => {
+const leaveChannel = async (profile, opts) => {
   'use strict'
 
+  opts = opts || {}
   const response = await agent(
     '/leave_channel',
     {
       body: {
-        channel // NOTE: channel-uid;
+        channel: opts.channel
       }
     },
     profile

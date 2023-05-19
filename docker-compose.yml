@@ -1,14 +1,20 @@
 version: '3.9'
-services: 
+services:
     club:
-      build:
-          context: .
-      env_file: ./.env
-      command: yarn start
-      volumes: 
-          - .:/app/
-          - /app/node_modules
-      ports:
-          - "4040:4000"
-      expose:
-          - "4040"
+        build: .
+        container_name: club
+        restart: always
+        env_file: .env
+        command: npm run dev
+        volumes:
+            - .:/app
+            - /app/node_modules
+        ports:
+            - "4100:4000"
+    mongo:
+        image: "mongo"
+        container_name: mongo
+        ports:
+        - "27017:27017"
+        expose:
+        - 27017

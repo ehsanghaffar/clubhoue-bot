@@ -61,6 +61,7 @@ import requestMobileAuthAgain from './requestMobileAuthAgain'
 import block from './block'
 import unblock from './unblock'
 import sendChannelMessage from './sendChanneMessage'
+import getChannelMessages from './getChannelMessages'
 
 // NOTE: Externals
 import getStatic from './getStatic'
@@ -123,5 +124,6 @@ export {
   requestMobileAuthAgain,
   block,
   unblock,
-  sendChannelMessage
+  sendChannelMessage,
+  getChannelMessages
 }

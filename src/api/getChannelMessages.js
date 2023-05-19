@@ -10,19 +10,21 @@ const getChannelMessages = async (profile, opts) => {
   'use strict'
 
   opts = opts || {}
-
+  
   const response = await agent(
-    '/get_channel_messages',
+    `/get_channel_messages`,
     {
       query: {
         channel: opts.channel,
-        is_chronological_order: opts.order || 1
+        is_chronological_order: Number(opts.order)
       }
     },
-    profile
+    {
+      ...profile,
+      userId: '(null)'
+    }
   )
   const data = await response.json()
-
   return data
 }
 

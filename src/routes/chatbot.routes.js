@@ -3,32 +3,8 @@ const router = express.Router();
 const fs = require("fs");
 const path = require("path");
 const clubService = require("../services/clubApiService");
-const ClientModel = require("../models/token");
-const fetch = require('node-fetch');
 const openai = require('../services/openAIService');
 const RoomMessageModel = require('../models/roomMessage')
-require('dotenv').config();
-
-const { Client, profiles } = require("..");
-
-const profile = {
-  ...profiles.application.lastVersion,
-};
-
-const club = new Client({ profile });
-
-const profileLoc = path.join(__dirname, "../../profile.json");
-let ctx = false;
-let ctx2;
-
-
-if (fs.existsSync(profileLoc)) {
-  ctx = JSON.parse(fs.readFileSync(profileLoc));
-
-  profile.token = ctx.auth_token
-  profile.deviceId = ctx.deviceId;
-}
-
 
 const uniqueIds = new Set();
 const uniqueMessages = new Set();
@@ -64,9 +40,9 @@ const saveMessageToMongoDatabase = async (msg) => {
     const dataToSave = await data.save()
     return dataToSave
   } catch (error) {
+    console.error(error)
     return error
   }
-
 }
 
 const getAllDbMessage = async (channelId) => {
@@ -82,7 +58,6 @@ const getAllDbMessage = async (channelId) => {
     })
   }
 }
-
 
 const sendToOpenAI = async (prompt) => {
   const { message, owner, id, sended, _id } = prompt
@@ -102,7 +77,7 @@ const sendToOpenAI = async (prompt) => {
         ],
       });
       if (result.data) {
-        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, {$set: { sended: true } })
+        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, { $set: { sended: true } })
         const answer = result.data.choices[0].message;
         return {
           message: answer,
@@ -111,9 +86,8 @@ const sendToOpenAI = async (prompt) => {
       }
     }
   } catch (error) {
-    console.log(error)
+    console.error(error)
   }
-
 }
 
 const sendToClub = async (data, channel) => {
@@ -121,9 +95,8 @@ const sendToClub = async (data, channel) => {
   try {
     const result = await clubService.sendChannelMessage({ channel: channel, message: `${user.substring(0, user.indexOf(" "))} answer:  ${message.content}` })
     const sendDone = result.data;
-    console.log(sendDone);xw
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }
 
@@ -141,17 +114,14 @@ const saveUniqueMessagesToDB = async (channelId) => {
   }
 }
 
-
 let intervalId = null;
 
 router.post('/start', async function (req, res) {
   const { channel } = req.body
-
   const loopFunc = async () => {
     await saveUniqueMessagesToDB(channel)
     await getAllDbMessage(channel)
   }
-
   intervalId = setInterval(loopFunc, 30000)
   res.send("Ok")
 })
@@ -164,7 +134,6 @@ router.post('/stop', async function (req, res) {
 router.get('/messages', async (req, res) => {
   try {
     const messages = await RoomMessageModel.find();
-    // const messages = await getAllDbMessage()
     res.send(messages)
   } catch (error) {
     res.send(error)
@@ -179,6 +148,5 @@ router.get('/clear-messages', async (req, res) => {
     res.send(error)
   }
 })
-
 
 module.exports = router;

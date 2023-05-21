@@ -125,7 +125,7 @@ router.post('/start', async function (req, res) {
     await saveUniqueMessagesToDB(channel)
     await getAllDbMessage(channel)
   }
-  intervalId = setInterval(loopFunc, 30000)
+  intervalId = setInterval(loopFunc, 15000)
   res.send("Ok")
 })
 

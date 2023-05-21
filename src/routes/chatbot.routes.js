@@ -77,8 +77,8 @@ const sendToOpenAI = async (prompt) => {
         ],
       });
       if (result.data) {
-        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, { $set: { sended: true } })
         const answer = result.data.choices[0].message;
+        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, { $set: { sended: true, gpt_answer: answer.content } })
         return {
           message: answer,
           user: owner,

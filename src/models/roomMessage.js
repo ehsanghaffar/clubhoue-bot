@@ -18,6 +18,10 @@ const roomMessageSchema = new mongoose.Schema({
   sended: {
     type: Boolean,
     required: true
+  },
+  gpt_answer: {
+    type: String,
+    required: false
   }
 })
 

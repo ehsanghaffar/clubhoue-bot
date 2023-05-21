@@ -122,3 +122,4 @@ dist
 .idea/
 .DS_Store
 __MACOSX
+mongodb

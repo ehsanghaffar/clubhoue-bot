@@ -8,13 +8,25 @@ services:
         command: npm run dev
         volumes:
             - .:/app
-            - /app/node_modules
         ports:
             - "4100:4000"
-    mongo:
+        networks:
+            - club_network
+
+    club_database:
         image: "mongo"
-        container_name: mongo
+        container_name: club_database
         ports:
-        - "27017:27017"
-        expose:
-        - 27017
+            - "27017:27017"
+        volumes:
+            - ./mongodb:/data/db
+        networks:
+            - club_network
+
+volumes:
+    mongodb:
+
+
+networks:
+    club_network:
+        driver: bridge

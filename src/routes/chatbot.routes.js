@@ -109,7 +109,7 @@ const saveUniqueMessagesToDB = async (channelId) => {
       }
     })
     uniqueMessages.forEach(async (message) => {
-      const checkIfExist = RoomMessageModel.findOne({message_id: message.message_id})
+      const checkIfExist = await RoomMessageModel.findOne({message_id: message.message_id})
       if (!checkIfExist) {
         await saveMessageToMongoDatabase(message)
       }

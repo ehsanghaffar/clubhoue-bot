@@ -4,8 +4,7 @@ const mongoose = require('mongoose');
 const roomMessageSchema = new mongoose.Schema({
   id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   message: {
     type: String,

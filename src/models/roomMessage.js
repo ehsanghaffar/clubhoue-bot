@@ -2,9 +2,10 @@ const { boolean } = require('joi');
 const mongoose = require('mongoose');
 
 const roomMessageSchema = new mongoose.Schema({
-  id: {
+  message_id: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   message: {
     type: String,

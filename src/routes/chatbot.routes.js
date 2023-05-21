@@ -31,7 +31,7 @@ const fetchMessages = async (channel) => {
 const saveMessageToMongoDatabase = async (msg) => {
   const { message_id, message, owner } = msg
   const data = new RoomMessageModel({
-    id: message_id,
+    message_id: message_id,
     message: message,
     owner: owner,
     sended: false
@@ -60,7 +60,7 @@ const getAllDbMessage = async (channelId) => {
 }
 
 const sendToOpenAI = async (prompt) => {
-  const { message, owner, id, sended, _id } = prompt
+  const { message, owner, message_id, sended, _id } = prompt
   try {
     if (!sended) {
       const result = await openai.createChatCompletion({
@@ -109,7 +109,10 @@ const saveUniqueMessagesToDB = async (channelId) => {
       }
     })
     uniqueMessages.forEach(async (message) => {
-      await saveMessageToMongoDatabase(message)
+      const checkIfExist = RoomMessageModel.findOne({message_id: message.message_id})
+      if (!checkIfExist) {
+        await saveMessageToMongoDatabase(message)
+      }
     })
   }
 }

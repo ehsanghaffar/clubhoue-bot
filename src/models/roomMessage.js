@@ -1,0 +1,25 @@
+const { boolean } = require('joi');
+const mongoose = require('mongoose');
+
+const roomMessageSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  owner: {
+    type: String,
+    required: true
+  },
+  sended: {
+    type: Boolean,
+    required: true
+  }
+})
+
+module.exports = mongoose.model('roomMessage', roomMessageSchema)
+

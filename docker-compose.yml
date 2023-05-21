@@ -8,6 +8,7 @@ services:
         command: npm run dev
         volumes:
             - .:/app
+            - /app/node_modules
         ports:
             - "4100:4000"
         networks:

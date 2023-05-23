@@ -6,7 +6,6 @@ const clubService = require("../services/clubApiService");
 const openai = require('../services/openAIService');
 const RoomMessageModel = require('../models/roomMessage')
 
-const uniqueIds = new Set();
 const uniqueMessages = new Set();
 
 const fetchMessages = async (channel) => {
@@ -68,7 +67,7 @@ const sendToOpenAI = async (prompt) => {
         messages: [
           {
             role: "system",
-            content: "Your are ClubGPT, And make sure generated answer is less than 260 characters.",
+            content: "Your are ClubGPT, Your owner is Ehsan, And make sure generated answer is less than 260 characters.",
           },
           {
             role: "user",
@@ -93,29 +92,47 @@ const sendToOpenAI = async (prompt) => {
 const sendToClub = async (data, channel) => {
   const { user, message } = data
   try {
-    const result = await clubService.sendChannelMessage({ channel: channel, message: `${user.substring(0, user.indexOf(" "))} answer:  ${message.content}` })
-    const sendDone = result.data;
+    const result = await clubService.sendChannelMessage({ channel: channel, message: `${user.substring(0, user.indexOf(" "))} jan, ${message.content}` })
+    if (result?.success) {
+      clubService.debug(result)
+    }
   } catch (error) {
     console.error(error);
   }
 }
 
+// Old version
+// const saveUniqueMessagesToDB = async (channelId) => {
+//   const chats = await fetchMessages(channelId)
+//   if (chats) {
+//     chats.map((m) => {
+//       if (!uniqueMessages.has(m)) {
+//         uniqueMessages.add(m)
+//       }
+//     })
+//     uniqueMessages.forEach(async (message) => {
+//       const checkIfExist = await RoomMessageModel.findOne({message_id: message.message_id})
+//       if (!checkIfExist) {
+//         await saveMessageToMongoDatabase(message)
+//       }
+//     })
+//   }
+// }
+
+// New Version
 const saveUniqueMessagesToDB = async (channelId) => {
-  const chats = await fetchMessages(channelId)
+  const chats = await fetchMessages(channelId);
   if (chats) {
-    chats.map((m) => {
-      if (!uniqueMessages.has(m)) {
-        uniqueMessages.add(m)
-      }
-    })
-    uniqueMessages.forEach(async (message) => {
-      const checkIfExist = await RoomMessageModel.findOne({message_id: message.message_id})
+    const uniqueChats = chats.filter((m) => !uniqueMessages.has(m));
+    for (const message of uniqueChats) {
+      uniqueMessages.add(message);
+      const checkIfExist = await RoomMessageModel.findOne({message_id: message.message_id});
       if (!checkIfExist) {
-        await saveMessageToMongoDatabase(message)
+        await saveMessageToMongoDatabase(message);
       }
-    })
+    }
   }
-}
+};
 
 let intervalId = null;
 

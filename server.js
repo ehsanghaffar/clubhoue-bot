@@ -10,6 +10,7 @@ const db = require('./src/config/db/db');
 // const auth = require("./src/routes/auth");
 const singleRoutes = require('./src/routes/routes')
 const chatbotRoutes = require('./src/routes/chatbot.routes')
+const pomodoroRoutes = require('./src/routes/channel.routes')
 const port = process.env.PORT || 4000
 
 
@@ -30,6 +31,7 @@ app.get('/', (req, res) => {
 
 app.use("/api", singleRoutes)
 app.use("/chat", chatbotRoutes)
+app.use("/pomo", pomodoroRoutes)
 
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)

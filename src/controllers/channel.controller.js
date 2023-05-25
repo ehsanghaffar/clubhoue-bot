@@ -1,3 +1,9 @@
+/**
+ * @license
+ * @copyright Ehsan Gi.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
+ */
 const express = require("express");
 const router = express.Router();
 const fs = require("fs");
@@ -157,6 +163,19 @@ exports.getCurrentChannel = async (req, res) => {
   try {
     const current = await clubService.getChannel({channel: channel})
     res.send(current)
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: `Error:  ${error}`,
+    });
+  }
+}
+
+exports.emojiReaction = async (req, res) => {
+  const { channel, emoji } = req.body
+  try {
+    const reaction = await clubService.emojiReaction({channel: channel, emoji: emoji})
+    res.send(reaction)
   } catch (error) {
     return res.status(500).json({
       error: true,

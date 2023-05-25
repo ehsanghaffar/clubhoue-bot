@@ -62,6 +62,7 @@ import block from './block'
 import unblock from './unblock'
 import sendChannelMessage from './sendChanneMessage'
 import getChannelMessages from './getChannelMessages'
+import emojiReaction from './emojiReaction'
 
 // NOTE: Externals
 import getStatic from './getStatic'
@@ -125,5 +126,6 @@ export {
   block,
   unblock,
   sendChannelMessage,
-  getChannelMessages
+  getChannelMessages,
+  emojiReaction
 }

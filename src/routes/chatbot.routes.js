@@ -73,7 +73,7 @@ const sendToOpenAI = async (prompt) => {
         messages: [
           {
             role: "system",
-            content: "Your are ClubGPT in English and `کلاب جی پی تی ` in Persian language, And make sure generated answer is less than 270 characters.",
+            content: "Your are ClubGPT in English and `کلاب جی پی تی ` in Persian language, And make sure generated answer is less than 260 characters.",
           },
           {
             role: "user",

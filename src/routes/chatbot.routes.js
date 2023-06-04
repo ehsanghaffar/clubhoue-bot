@@ -11,6 +11,7 @@ const path = require("path");
 const clubService = require("../services/clubApiService");
 const openai = require('../services/openAIService');
 const RoomMessageModel = require('../models/roomMessage')
+const { countCharacters } = require('../utils/index')
 
 const uniqueMessages = new Set();
 
@@ -39,7 +40,7 @@ const saveMessageToMongoDatabase = async (msg) => {
     message_id: message_id,
     message: message,
     owner: owner,
-    sended: false
+    is_send_answer_to_club: false
   });
   try {
     const dataToSave = await data.save()
@@ -54,7 +55,7 @@ const getAllDbMessage = async (channelId) => {
   const messages = await RoomMessageModel.find();
   if (messages) {
     messages.map(async (msg) => {
-      if (!msg.sended) {
+      if (!msg.is_send_answer_to_club) {
         const sendingToGPT = await sendToOpenAI(msg)
         if (sendingToGPT) {
           await sendToClub(sendingToGPT, channelId)
@@ -65,9 +66,9 @@ const getAllDbMessage = async (channelId) => {
 }
 
 const sendToOpenAI = async (prompt) => {
-  const { message, owner, message_id, sended, _id } = prompt
+  const { message, owner, message_id, is_send_answer_to_club, _id } = prompt
   try {
-    if (!sended) {
+    if (!is_send_answer_to_club) {
       const result = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
@@ -83,7 +84,9 @@ const sendToOpenAI = async (prompt) => {
       });
       if (result.data) {
         const answer = result.data.choices[0].message;
-        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, { $set: { sended: true, gpt_answer: answer.content } })
+        const countAnswer = countCharacters(answer.content)
+        clubService.debug("Count: ", countAnswer)
+        const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, { $set: { is_send_answer_to_club: true, gpt_answer: answer.content } })
         return {
           message: answer,
           user: owner,
@@ -98,7 +101,8 @@ const sendToOpenAI = async (prompt) => {
 const sendToClub = async (data, channel) => {
   const { user, message } = data
   try {
-    const result = await clubService.sendChannelMessage({ channel: channel, message: `${user.substring(0, user.indexOf(" "))} jan, ${message.content}` })
+    const rewriteMessage = message.content.substring(0, 260)
+    const result = await clubService.sendChannelMessage({ channel: channel, message: `${user.substring(0, user.indexOf(" "))} jan, ${rewriteMessage}` })
     if (result?.success) {
       clubService.debug(result)
     }

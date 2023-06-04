@@ -25,7 +25,7 @@ const roomMessageSchema = new mongoose.Schema({
     type: String,
     required: false
   },
-  sended: {
+  is_send_answer_to_club: {
     type: Boolean,
     required: true
   },

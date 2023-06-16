@@ -6,10 +6,12 @@
  */
 import createLogger from './createLogger'
 import countCharacters from './calculateCharacters'
+import fetchMessages from './fetchRoomMessages'
 // import pomodoro from './pomodoro-alert'
 
 export {
   createLogger,
-  countCharacters
+  countCharacters,
+  fetchMessages
   // pomodoro
 }

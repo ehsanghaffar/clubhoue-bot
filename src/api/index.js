@@ -63,6 +63,7 @@ import unblock from './unblock'
 import sendChannelMessage from './sendChanneMessage'
 import getChannelMessages from './getChannelMessages'
 import emojiReaction from './emojiReaction'
+import inviteToSpeakers from './inviteSpeaker'
 
 // NOTE: Externals
 import getStatic from './getStatic'
@@ -127,5 +128,6 @@ export {
   unblock,
   sendChannelMessage,
   getChannelMessages,
-  emojiReaction
+  emojiReaction,
+  inviteToSpeakers
 }

@@ -23,6 +23,16 @@ exports.findClientToken = async (clientName) => {
   }
 };
 
+const fetchMessages = async (channel) => {
+  try {
+    const result = await clubService.getChannelMessages({ channel: channel, order: 0 })
+    const invites = result.messages?.filter((m) => m.message.startsWith("/invite"))
+    return invites
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 // const ActivePingNewMethod = (channelId) => {
 //   setInterval(async () => {
 //     await clubService.activePing({ channelId })
@@ -80,6 +90,7 @@ const pingServer = async (channel) => {
   if (ping.should_leave) {
     console.log('should_leave', ping)
     await club.joinChannel({ channel: channel, source: 'feed' })
+    // await handleIviteRequests(channel)
     return;
   }
 
@@ -88,11 +99,33 @@ const pingServer = async (channel) => {
   }, 180000);
 }
 
+const handleIviteRequests = async (changeId) => {
+  try {
+    const messages = await fetchMessages(changeId)
+    if (messages) {
+      console.log("invites", messages)
+      for (const invite of messages) {
+        console.log("invite", invite)
+        const result = await clubService.inviteToSpeakers({channel: changeId, user: invite.user_profile.user_id })
+        console.log("added", result)
+      }
+    }
+  } catch (error) {
+    console.log("errrooor", error)
+  }
+
+}
+
 exports.joinRoom = async (req, res) => {
   const { channel } = req.body
   try {
     const result = await clubService.joinChannel({ channel: channel });
-    pingServer(channel)
+    if (result) {
+      pingServer(channel)
+      setTimeout(() => {
+        handleIviteRequests(channel);
+      }, 3000);
+    }
     res.send(result);
   } catch (error) {
     res.status(500).send(error);

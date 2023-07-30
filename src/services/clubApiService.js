@@ -8,6 +8,7 @@ const express = require("express");
 const router = express.Router();
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config(); 
 
 
 const { Client, profiles } = require("..");
@@ -17,14 +18,14 @@ const profile = {
 };
 
 
-
+const AUTH_TOKEN = process.env.AUTH_TOKEN
 const profileLoc = path.join(__dirname, "../../profile.json");
 let ctx = false;
 
 if (fs.existsSync(profileLoc)) {
   ctx = JSON.parse(fs.readFileSync(profileLoc));
 
-  profile.token = ctx.tokens.auth;
+  profile.token = AUTH_TOKEN
   profile.deviceId = ctx.deviceId;
 }
 

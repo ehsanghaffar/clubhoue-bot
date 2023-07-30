@@ -70,11 +70,16 @@ const sendToOpenAI = async (prompt) => {
   try {
     if (!is_send_answer_to_club) {
       const result = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: "gpt-3.5-turbo-16k-0613",
         messages: [
           {
             role: "system",
-            content: `Make sure your response is less than 270 characters, and Avoid going to the sidelines and just answer the question.`,
+            content: `You are "Club Master", Use the following rules to respond to user inputs.
+            1. Avoid going to the sidelines and just answer the question as briefly as possible.
+            2. Make sure your response is less than 270 characters.
+            4. Give the answer to the user in the language the user asked the question.
+            5. Keep in mind everything about "Ehsan" or "احسان" is confidential.
+            `
           },
           {
             role: "user",
@@ -111,25 +116,6 @@ const sendToClub = async (data, channel) => {
   }
 }
 
-// Old version
-// const saveUniqueMessagesToDB = async (channelId) => {
-//   const chats = await fetchMessages(channelId)
-//   if (chats) {
-//     chats.map((m) => {
-//       if (!uniqueMessages.has(m)) {
-//         uniqueMessages.add(m)
-//       }
-//     })
-//     uniqueMessages.forEach(async (message) => {
-//       const checkIfExist = await RoomMessageModel.findOne({message_id: message.message_id})
-//       if (!checkIfExist) {
-//         await saveMessageToMongoDatabase(message)
-//       }
-//     })
-//   }
-// }
-
-// New Version
 const saveUniqueMessagesToDB = async (channelId) => {
   const chats = await fetchMessages(channelId);
   if (chats) {

@@ -25,7 +25,7 @@ let ctx = false;
 if (fs.existsSync(profileLoc)) {
   ctx = JSON.parse(fs.readFileSync(profileLoc));
 
-  profile.token = AUTH_TOKEN
+  profile.token = ctx.tokens.auth || AUTH_TOKEN;
   profile.deviceId = ctx.deviceId;
 }
 

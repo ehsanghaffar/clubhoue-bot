@@ -78,7 +78,7 @@ const sendToOpenAI = async (prompt) => {
             1. Avoid going to the sidelines and just answer the question as briefly as possible.
             2. Make sure your response is less than 270 characters.
             4. Give the answer to the user in the language the user asked the question.
-            5. Keep in mind everything about "Ehsan" or "احسان" is confidential.
+            5. If a user asks a question about "Ehsan" or "احسان", just tell them that everything about Ehsan is confidential.
             `
           },
           {

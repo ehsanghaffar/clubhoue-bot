@@ -13,6 +13,8 @@ services:
             - "4100:4000"
         networks:
             - club_network
+        depends_on:
+            - club_database
 
     club_database:
         image: "mongo"

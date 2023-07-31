@@ -17,11 +17,11 @@ const roomMessageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  owner: {
+  user_name: {
     type: String,
     required: true
   },
-  owner_username: {
+  user_id: {
     type: String,
     required: false
   },

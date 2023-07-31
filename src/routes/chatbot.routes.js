@@ -69,13 +69,7 @@ const sendToOpenAI = async (prompt) => {
         messages: [
           {
             role: "system",
-            content: `You are "Club Master", Use the following rules to respond to user inputs.
-            1. Avoid going to the sidelines and just answer the question as briefly as possible.
-            2. Make sure your response is less than 270 characters.
-            4. Give the answer to the user in the language the user asked the question.
-            5. If a user asks a question about "Ehsan" or "احسان", just tell them that everything about Ehsan is confidential.
-            6. Make sure your response start with: ${user_name} jan,
-            `
+            content: `Use the following rules to respond to user inputs.1. Avoid going to the sidelines and just answer the question as briefly as possible.2. Make sure your response is less than 270 characters.4. Give the answer to the user in the language the user asked the question.5. If a user asks a question about "Ehsan" or "احسان", just tell them that everything about Ehsan is confidential.6. Make sure your response starts with ${user_name} Jan,`
           },
           {
             role: "user",
@@ -84,6 +78,7 @@ const sendToOpenAI = async (prompt) => {
         ],
       });
       if (result.data) {
+        clubService.debug(result.data)
         const answer = result.data.choices[0].message;
         const countAnswer = countCharacters(answer.content);
         const updateDB = await RoomMessageModel.findByIdAndUpdate(_id, {

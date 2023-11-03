@@ -39,8 +39,8 @@ if (fs.existsSync(profileLoc)) {
 
 // active ping loop for room
 const handleActivePing = async (channel) => {
-  const ping = await club.activePing({ channel });
-  club.debug(ping);
+  const ping = await clubService.activePing({ channel });
+  clubService.debug(ping);
   if (ping.success) {
     setTimeout(() => {
       handleActivePing(channel);
@@ -48,13 +48,13 @@ const handleActivePing = async (channel) => {
   }
   if (ping.should_leave) {
     console.log("should_leave", ping);
-    await club.joinChannel({ channel: channel, source: "feed" });
+    await clubService.joinChannel({ channel: channel, source: "feed" });
   }
 };
 
 const newActivePing = async (channel) => {
   try {
-    const ping = await club.activePing({ channel });
+    const ping = await clubService.activePing({ channel });
     let timer = setTimeout(() => {
       newActivePing(channel)
     }, 180000);
@@ -112,7 +112,7 @@ const getUserToken = async (name) => {
 router.post("/search_users", async (req, res) => {
   const query = req.body;
   try {
-    const users = await club.searchUsers(query);
+    const users = await clubService.searchUsers(query);
     res.send(users);
   } catch (error) {
     console.error(error);
@@ -126,7 +126,7 @@ router.post("/accept_invite", async (req, res) => {
   try {
     const user = await getUserToken(userName)
     profile.token = user.token
-    const result = await club.acceptSpeakerInvite({ channel: channel });
+    const result = await clubService.acceptSpeakerInvite({ channel: channel });
     res.send(result);
   } catch (error) {
     console.error(error);
@@ -149,7 +149,7 @@ router.post("/accept_invite", async (req, res) => {
 router.post('/get_user', async (req, res) => {
   const id = req.body.user_id
   try {
-    const user = await club.getUser({ id: id })
+    const user = await clubService.getUser({ id: id })
     res.send(user)
   } catch (error) {
     console.error(error);

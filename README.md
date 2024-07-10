@@ -20,12 +20,12 @@ Clubhouse-API is a full API for Clubhouse. It provides a simple way to access th
  Language             Files        Lines        Blank      Comment         Code
 --------------------------------------------------------------------------------
  JSON                     4        17562            0            0        17562
- JavaScript              92         4390          550          692         3148
- TypeScript               9          287           35           67          185
+ JavaScript              92         4338          546          643         3149
+ TypeScript              12          545           65           77          403
  Markdown                 2          104           33            0           71
- YAML                     1           33            4            0           29
+ YAML                     1           35            4            0           31
  Bourne Shell             1            7            1            1            5
 --------------------------------------------------------------------------------
- Total                  109        22383          623          760        21000
+ Total                  112        22591          649          721        21221
 --------------------------------------------------------------------------------
 ```

@@ -33,44 +33,7 @@ const fetchMessages = async (channel) => {
   }
 };
 
-// const ActivePingNewMethod = (channelId) => {
-//   setInterval(async () => {
-//     await clubService.activePing({ channelId })
-//   }, 1 * 60 * 1000);
-// }
 
-// const newActivePing = async (channel) => {
-//   try {
-//     const ping = await clubService.activePing({ channel });
-//     if (ping.should_leave) {
-//       console.log("Error", ping)
-//       return ping;
-//     }
-//     setTimeout(() => {
-//       newActivePing(channel)
-//     }, 120000);
-//     return ping;
-//   } catch (error) {
-//     console.log(error)
-//     return `Error: ${error}`
-//   }
-// };
-
-// const newActivePing = async (channel) => {
-//   try {
-//     const ping = await clubService.activePing({ channel });
-//     if (ping.should_leave) {
-//       clubService.debug("Leave: ", ping)
-//       return ping;
-//     }
-//     return await new Promise(resolve => setTimeout(() => resolve(newActivePing(channel)), 240000));
-//   } catch (error) {
-//     console.log(error)
-//     return `Error: ${error}`
-//   }
-// };
-
-// get loby feed
 exports.getFeed = async (req, res) => {
   try {
     const feed = await clubService.getChannels();

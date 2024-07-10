@@ -10,7 +10,7 @@ const getChannels = async profile => {
   'use strict'
 
   const response = await agent(
-    '/get_feed',
+    '/get_feed_v3?get_unconnected_rooms=true',
     {
       body: {}
     },

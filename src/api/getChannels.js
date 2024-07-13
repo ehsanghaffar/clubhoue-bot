@@ -6,9 +6,10 @@
  */
 import agent from '../helper/agent'
 
-const getChannels = async profile => {
+const getChannels = async (profile, opts) => {
   'use strict'
 
+  opts = opts || {}
   const response = await agent(
     '/get_feed_v3?get_unconnected_rooms=true',
     {

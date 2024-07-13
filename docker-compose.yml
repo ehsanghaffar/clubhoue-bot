@@ -20,7 +20,7 @@ services:
         image: "mongo"
         container_name: club_database
         ports:
-            - "27017:27017"
+            - "27020:27017"
         volumes:
             - ./mongodb:/data/db
         networks:

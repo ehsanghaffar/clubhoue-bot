@@ -180,7 +180,7 @@ router.post('/get_room_users', welcomeController.getChannelInfo);
 
 router.post("/leave", channelController.leaveRoom);
 
-router.get('/channels', channelController.getFeed);
+router.post('/channels', channelController.getFeed);
 
 router.post('/current-channel', channelController.getCurrentChannel);
 

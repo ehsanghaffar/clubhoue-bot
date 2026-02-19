@@ -13,8 +13,6 @@ services:
             - "4100:4000"
         networks:
             - club_network
-        depends_on:
-            - club_database
 
     club_database:
         image: "mongo"
@@ -22,7 +20,7 @@ services:
         ports:
             - "27020:27017"
         volumes:
-            - ./mongodb:/data/db
+            - club_database-data:/data/db
         networks:
             - club_network
 

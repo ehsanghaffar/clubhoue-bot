@@ -1,13 +1,15 @@
-FROM node:16.16.0-alpine3.16
+FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json package-lock.json ./
 
 RUN npm install
 
 COPY . .
 
+RUN chmod +x start.sh
+
 EXPOSE 4000
 
-# CMD ./start.sh
+CMD ["./start.sh"]

@@ -8,4 +8,4 @@ const fetchMessages = async (channel) => {
   }
 };
 
-export default fetchMessages
+module.exports = fetchMessages

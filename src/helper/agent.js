@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import fetch from 'cross-fetch'
-import qs from 'qs'
-import { v4 as uuidv4 } from 'uuid'
+const fetch = require('cross-fetch');
+const qs = require('qs');
+const { v4: uuidv4 } = require('uuid');
 
 const agent = (url, options, customs) => {
   'use strict'
@@ -18,11 +18,11 @@ const agent = (url, options, customs) => {
   options.headers = options.headers || {}
 
   // NOTE: Clubhouse;
-  options.headers['User-Agent'] = customs.userAgent || 'clubhouse/1806 (iPhone; iOS 16.0; Scale/3.00)'
+  options.headers['User-Agent'] = customs.userAgent || 'clubhouse/2029 (iPhone; iOS 16.3; Scale/3.00)'
   options.headers['CH-Languages'] = customs.languages || 'en-US'
   options.headers['CH-Locale'] = customs.locale || 'en_US'
-  options.headers['CH-AppVersion'] = customs.appVersion || '22.11.01'
-  options.headers['CH-AppBuild'] = customs.appBuild || '1806'
+  options.headers['CH-AppVersion'] = customs.appVersion || '23.02.07'
+  options.headers['CH-AppBuild'] = customs.appBuild || '2029'
   options.headers['CH-DeviceId'] = customs.deviceId || uuidv4().toUpperCase()
   options.headers['CH-UserID'] = customs.userId || '(null)'
 
@@ -64,4 +64,4 @@ const agent = (url, options, customs) => {
   return fetch(url, options)
 }
 
-export default agent
+module.exports = agent;

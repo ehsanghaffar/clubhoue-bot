@@ -9,7 +9,10 @@ const Schema = mongoose.Schema;
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
 
-const jwtPrivateKey = 'secretkey'
+const jwtPrivateKey = process.env.JWT_PRIVATE_KEY;
+if (!jwtPrivateKey) {
+  throw new Error('JWT_PRIVATE_KEY environment variable is required');
+}
 
 const userSchema = new Schema({
   name: {

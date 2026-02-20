@@ -4,8 +4,10 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import * as application from './profile'
+const application = require('./profile/index.js')
+const constants = require('./constants.js')
 
-export {
-  application
+module.exports = {
+  application,
+  constants
 }

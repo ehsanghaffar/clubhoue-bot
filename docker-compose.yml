@@ -1,21 +1,25 @@
-version: '3.9'
 services:
     club:
         build: .
         container_name: clubmaster
         restart: always
         env_file: .env
+        environment:
+            - NODE_ENV=development
+            - MONGODB_URL=mongodb://club_database:27017/clubhouse
         command: npm run dev
         volumes:
             - .:/app
             - /app/node_modules
         ports:
-            - "4100:4000"
+            - "4000:4000"
         networks:
             - club_network
+        depends_on:
+            - club_database
 
     club_database:
-        image: "mongo"
+        image: "mongo:6"
         container_name: club_database
         ports:
             - "27020:27017"
@@ -25,8 +29,7 @@ services:
             - club_network
 
 volumes:
-    mongodb:
-
+    club_database-data:
 
 networks:
     club_network:

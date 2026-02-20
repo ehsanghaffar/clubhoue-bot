@@ -1,10 +1,16 @@
+/**
+ * @license
+ * @copyright Ehsan Gi.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
+ */
 const express = require("express");
 const router = express.Router();
 const clubService = require("../services/clubApiService");
 const openai = require('../services/openAIService');
 const { countCharacters } = require('../utils/index');
-
-const uniqueMessages = new Set();
+const { getNewMessages: getNewMessagesFromCache, markMessagesSeen } = require('../utils/messageCache');
+const { constants } = require('../config');
 
 // Fetch messages from the channel
 const fetchChannelMessages = async (channel) => {
@@ -50,35 +56,35 @@ const sendToOpenAI = async (prompt) => {
         },
         {
           role: "user",
-          content: message,
+          content: message
         }
       ],
+      max_tokens: 150,
+      temperature: 0.7
     });
-    if (result.data) {
-      clubService.debug(result.data)
-      const answer = result.data.choices[0].message;
-      const countAnswer = countCharacters(answer.content);
+
+    if (result && result.choices && result.choices[0]) {
+      const rewriteMessage = message.content.substring(0, constants.MESSAGE_LIMITS.MAX_RESPONSE_LENGTH);
       return {
-        message: answer,
-        user: user_name,
+        message: rewriteMessage,
+        message_id: message_id
       };
     }
   } catch (error) {
-    console.error(error);
+    console.error("OpenAI API error:", error);
   }
+  return null;
 };
 
-// Send message to the club channel
-const sendToClub = async (data, channel) => {
-  const { user, message } = data;
+// Send response back to Clubhouse
+const sendToClub = async (response, channelId) => {
   try {
-    const rewriteMessage = message.content.substring(0, 270);
-    const result = await clubService.sendChannelMessage({ channel, message: `${rewriteMessage}` });
-    if (result?.success) {
-      clubService.debug(result);
-    }
+    await clubService.sendChannelMessage({
+      channel: channelId,
+      message: response.message
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Club API error:", error);
   }
 };
 
@@ -87,10 +93,8 @@ const getNewMessages = async (channelId) => {
   const chats = await fetchChannelMessages(channelId);
   clubService.debug(`chats count: ${chats.length}`);
   if (chats) {
-    const newChats = chats.filter((m) => !uniqueMessages.has(m.message_id));
-    for (const message of newChats) {
-      uniqueMessages.add(message.message_id);
-    }
+    const newChats = getNewMessagesFromCache(channelId, chats);
+    markMessagesSeen(channelId, newChats);
     return newChats;
   }
   return [];
@@ -98,18 +102,58 @@ const getNewMessages = async (channelId) => {
 
 let intervalId = null;
 
-// Start processing loop
+/**
+ * @swagger
+ * /chatbot/start:
+ *   post:
+ *     summary: Start the chatbot processing loop for a channel
+ *     tags: [Chatbot]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               channel:
+ *                 type: string
+ *                 description: Channel ID to monitor for messages
+ *             example:
+ *               channel: "channel123"
+ *     responses:
+ *       200:
+ *         description: Chatbot processing started
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "Ok"
+ */
 router.post('/start', async function (req, res) {
   const { channel } = req.body;
   const loopFunc = async () => {
     const newMessages = await getNewMessages(channel);
     await processMessages(newMessages, channel);
   };
-  intervalId = setInterval(loopFunc, 15000);
+  intervalId = setInterval(loopFunc, constants.TIME.FIFTEEN_SECONDS);
   res.send("Ok");
 });
 
-// Stop processing loop
+/**
+ * @swagger
+ * /chatbot/stop:
+ *   post:
+ *     summary: Stop the chatbot processing loop
+ *     tags: [Chatbot]
+ *     responses:
+ *       200:
+ *         description: Chatbot processing stopped
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "Loop stopped"
+ */
 router.post('/stop', async function (req, res) {
   clearInterval(intervalId);
   res.send("Loop stopped");

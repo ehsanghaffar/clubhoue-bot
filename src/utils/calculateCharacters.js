@@ -1,3 +1,5 @@
-export default function countCharacters(str) {
+function countCharacters(str) {
   return str.length;
 }
+
+module.exports = countCharacters;

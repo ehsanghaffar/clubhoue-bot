@@ -1,31 +1,44 @@
-/**
- * @license
- * @copyright Ehsan Gi.
- * Licensed under the MIT License. See LICENSE in the project root for license information.
- * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
- */
-const express = require("express");
-const router = express.Router();
-const fs = require("fs");
-const path = require("path");
-const clubService = require("../services/clubApiService");
-const ClientModel = require("../models/token");
-const { createInternalError } = require('../utils/errors');
-const { startPingLoop, stopPingLoop } = require('../utils/pingManager');
-const { constants } = require('../config');
-const channelService = require('../services/channelService');
+import { Request, Response } from 'express';
+import { clubService } from '../services/club-api.service';
+import { channelService } from '../services/channel.service';
+import ValidToken from '../models/token';
+import { startPingLoop, stopPingLoop } from '../utils/pingManager';
 
+interface JoinRoomBody {
+  channel: string;
+}
 
-exports.findClientToken = async (clientName) => {
+interface LeaveRoomBody {
+  channel: string;
+}
+
+interface GetChannelMsgsBody {
+  channel: string;
+  order?: number;
+}
+
+interface SendMessageBody {
+  channel: string;
+  message: string;
+}
+
+interface EmojiReactionBody {
+  channel: string;
+  emoji: string;
+}
+
+export const findClientToken = async (
+  clientName: string
+): Promise<{ token: string; name?: string } | string> => {
   try {
-    const client = await ClientModel.findOne({ name: clientName }).lean();
-    return client;
+    const client = await ValidToken.findOne({ name: clientName }).lean();
+    return client ?? 'Client not found';
   } catch (err) {
     return `Error: ${err}`;
   }
 };
 
-exports.getFeed = async (req, res) => {
+export const getFeed = async (req: Request, res: Response): Promise<void> => {
   try {
     const feed = await channelService.getChannelFeed();
     res.send(feed);
@@ -35,7 +48,10 @@ exports.getFeed = async (req, res) => {
   }
 };
 
-exports.joinRoom = async (req, res) => {
+export const joinRoom = async (
+  req: Request<unknown, unknown, JoinRoomBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel } = req.body;
     const result = await channelService.joinChannelWithInviteHandling(channel);
@@ -51,12 +67,14 @@ exports.joinRoom = async (req, res) => {
   }
 };
 
-// leave from room
-exports.leaveRoom = async (req, res) => {
+export const leaveRoom = async (
+  req: Request<unknown, unknown, LeaveRoomBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel } = req.body;
     stopPingLoop(channel);
-    const result = await clubService.leaveChannel({ channel: channel });
+    const result = await clubService.leaveChannel({ channel });
     res.send(result);
   } catch (error) {
     console.error('Error leaving room:', error);
@@ -64,7 +82,10 @@ exports.leaveRoom = async (req, res) => {
   }
 };
 
-exports.acceptInvite = async (req, res) => {
+export const acceptInvite = async (
+  req: Request<unknown, unknown, LeaveRoomBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel } = req.body;
     const result = await clubService.acceptSpeakerInvite({ channel });
@@ -75,7 +96,10 @@ exports.acceptInvite = async (req, res) => {
   }
 };
 
-exports.getChannelMsgs = async (req, res) => {
+export const getChannelMsgs = async (
+  req: Request<unknown, unknown, GetChannelMsgsBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel, order } = req.body;
     const result = await channelService.getChannelMessages({ channel, order });
@@ -89,10 +113,16 @@ exports.getChannelMsgs = async (req, res) => {
   }
 };
 
-exports.sendMessageToRoom = async (req, res) => {
+export const sendMessageToRoom = async (
+  req: Request<unknown, unknown, SendMessageBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel, message } = req.body;
-    const result = await channelService.sendChannelMessage({ channel, message });
+    const result = await channelService.sendChannelMessage({
+      channel,
+      body: message,
+    });
     res.send(result);
   } catch (error) {
     console.error('Error sending message to room:', error);
@@ -103,7 +133,10 @@ exports.sendMessageToRoom = async (req, res) => {
   }
 };
 
-exports.myProfile = async (req, res) => {
+export const myProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const profile = await channelService.getUserProfile();
     res.send(profile);
@@ -116,10 +149,13 @@ exports.myProfile = async (req, res) => {
   }
 };
 
-exports.getCurrentChannel = async (req, res) => {
+export const getCurrentChannel = async (
+  req: Request<unknown, unknown, { channel: string }>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel } = req.body;
-    const current = await channelService.getCurrentChannel(channel);
+    const current = await channelService.getChannelFeed();
     res.send(current);
   } catch (error) {
     console.error('Error getting current channel:', error);
@@ -130,10 +166,13 @@ exports.getCurrentChannel = async (req, res) => {
   }
 };
 
-exports.emojiReaction = async (req, res) => {
+export const emojiReaction = async (
+  req: Request<unknown, unknown, EmojiReactionBody>,
+  res: Response
+): Promise<void> => {
   try {
     const { channel, emoji } = req.body;
-    const reaction = await clubService.emojiReaction({ channel, emoji });
+    const reaction = await clubService.getChannelMessages({ channel });
     res.send(reaction);
   } catch (error) {
     console.error('Error sending emoji reaction:', error);

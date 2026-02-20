@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import fetch from 'cross-fetch'
-import qs from 'qs'
-import { v4 as uuidv4 } from 'uuid'
+const fetch = require('cross-fetch');
+const qs = require('qs');
+const { v4: uuidv4 } = require('uuid');
 
 const agent = (url, options, customs) => {
   'use strict'
@@ -64,4 +64,4 @@ const agent = (url, options, customs) => {
   return fetch(url, options)
 }
 
-export default agent
+module.exports = agent;

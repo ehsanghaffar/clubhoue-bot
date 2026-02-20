@@ -11,12 +11,7 @@ const path = require("path");
 const clubService = require("../services/clubApiService");
 const ClientModel = require("../models/token");
 const RoomUserModel = require("../models/roomUser")
-const fetch = require('node-fetch');
 const { findClientToken } = require('./channel.controller')
-
-
-let users = []
-let mappedUsers = []
 
 exports.getChannelInfo = async (req, res) => {
   const ch = req.body.channel
@@ -25,8 +20,8 @@ exports.getChannelInfo = async (req, res) => {
     const client = await findClientToken(clientName);
     clubService.profile.token = client.token;
     const channelInfo = await clubService.getChannel({channel: ch})
-    users = channelInfo.users
-    users.map((user) => {
+    // Log user names for debugging
+    channelInfo.users?.forEach((user) => {
       console.log(user.name)
     })
     res.send(channelInfo)

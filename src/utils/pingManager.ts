@@ -1,34 +1,36 @@
-/**
- * @license
- * @copyright Ehsan Gi.
- * Licensed under the MIT License. See LICENSE in the project root for license information.
- * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
- */
+interface PingLoopInfo {
+  timeoutId: NodeJS.Timeout;
+  startedAt: number;
+}
 
-// Map to track active ping loops per channel
-const activePingLoops = new Map();
+interface PingResponse {
+  success?: boolean;
+  should_leave?: boolean;
+}
 
-const startPingLoop = (channel) => {
-  // Clear any existing loop for this channel
+const activePingLoops = new Map<string, PingLoopInfo>();
+
+const clubApiService = () => require('../services/club-api.service');
+
+export const startPingLoop = (channel: string): void => {
   stopPingLoop(channel);
 
-  const pingLoop = async () => {
+  const pingLoop = async (): Promise<void> => {
     try {
-      const ping = await require('../services/clubApiService').activePing({ channel });
+      const ping = (await clubApiService().activePing({ channel })) as PingResponse;
 
       if (!activePingLoops.has(channel)) {
-        return; // Loop was stopped
+        return;
       }
 
       if (ping.success) {
-        // Schedule next ping
-        const timeoutId = setTimeout(pingLoop, 180000); // 3 minutes
+        const timeoutId = setTimeout(pingLoop, 180000);
         activePingLoops.set(channel, { timeoutId, startedAt: Date.now() });
       }
 
       if (ping.should_leave) {
-        console.log("should_leave", ping);
-        await require('../services/clubApiService').joinChannel({ channel: channel, source: "feed" });
+        console.log('should_leave', ping);
+        await clubApiService().joinChannel({ channel, source: 'feed' });
         stopPingLoop(channel);
       }
     } catch (error) {
@@ -37,12 +39,11 @@ const startPingLoop = (channel) => {
     }
   };
 
-  // Start the first ping
   const timeoutId = setTimeout(pingLoop, 180000);
   activePingLoops.set(channel, { timeoutId, startedAt: Date.now() });
 };
 
-const stopPingLoop = (channel) => {
+export const stopPingLoop = (channel: string): void => {
   const loop = activePingLoops.get(channel);
   if (loop) {
     clearTimeout(loop.timeoutId);
@@ -50,7 +51,8 @@ const stopPingLoop = (channel) => {
   }
 };
 
-// Cleanup on process exit
+export const getActiveLoops = (): string[] => Array.from(activePingLoops.keys());
+
 process.on('SIGTERM', () => {
   console.log('Stopping all ping loops...');
   for (const channel of activePingLoops.keys()) {
@@ -64,9 +66,3 @@ process.on('SIGINT', () => {
     stopPingLoop(channel);
   }
 });
-
-module.exports = {
-  startPingLoop,
-  stopPingLoop,
-  getActiveLoops: () => Array.from(activePingLoops.keys())
-};

@@ -121,7 +121,7 @@ export const sendMessageToRoom = async (
     const { channel, message } = req.body;
     const result = await channelService.sendChannelMessage({
       channel,
-      body: message,
+      message: message,
     });
     res.send(result);
   } catch (error) {

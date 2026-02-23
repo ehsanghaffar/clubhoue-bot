@@ -126,8 +126,8 @@ export class ClubApiService {
     try {
       this.debug('Sending channel message');
       const response = await this.agent!(
-        '/add_channel_message',
-        { body: { channel: opts.channel, body: opts.body } },
+        '/send_channel_message',
+        { body: { channel: opts.channel, message: opts.message } },
         this.profile!
       );
       return await response.json();

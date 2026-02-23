@@ -3,6 +3,7 @@ import path from 'path';
 import { clubService } from './club-api.service';
 import type { AgentFunction } from '../types/services';
 import type { Profile } from '../types/config';
+import agent from '../helper/agent';
 
 export function initializeService(): void {
   try {
@@ -23,7 +24,6 @@ export function initializeService(): void {
         token: profile.token ?? (profile as unknown as { tokens?: { auth?: string } }).tokens?.auth,
       };
       
-      const agent = require('../helper/agent');
       return agent(url, options, mergedCustoms);
     };
 

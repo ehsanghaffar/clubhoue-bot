@@ -83,7 +83,6 @@ const sendToOpenAI = async (
       max_tokens: 150,
       temperature: 0.7,
     });
-
     if (result && result.data.choices && result.data.choices[0]) {
       const content = result.data.choices[0].message?.content ?? '';
       const rewriteMessage = content.substring(
@@ -108,7 +107,7 @@ const sendToClub = async (
   try {
     await clubService.sendChannelMessage({
       channel: channelId,
-      body: response.message,
+      message: response.message,
     });
   } catch (error) {
     console.error('Club API error:', error);

@@ -71,7 +71,7 @@ export class ChannelService {
     }
   }
 
-  async sendChannelMessage(options: { channel: string; body: string }): Promise<unknown> {
+  async sendChannelMessage(options: { channel: string; message: string }): Promise<unknown> {
     try {
       return await this.clubService.sendChannelMessage(options);
     } catch (error) {

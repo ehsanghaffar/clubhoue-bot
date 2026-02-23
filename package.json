@@ -1,14 +1,14 @@
 {
   "name": "clubhouse-full-api",
   "version": "1.0",
-  "main": "server.js",
+  "main": "dist/server.js",
   "author": "Ehsan Ghaffar <info@ehsanghaffarii.ir>",
   "license": "MIT",
   "types": "src/index.d.ts",
   "scripts": {
     "start": "node dist/server.js",
-    "start:dev": "node server.js",
-    "dev": "nodemon server.js",
+    "start:dev": "ts-node src/server.ts",
+    "dev": "nodemon --exec ts-node src/server.ts",
     "start:proxy": "node server.js --proxy-config proxy-config.json",
     "stop": "pm2 stop clubhouse-full-api",
     "prebuild": "rm -rf dist",

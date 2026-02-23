@@ -53,7 +53,7 @@ export interface GetChannelMessagesOptions {
 
 export interface SendChannelMessageOptions {
   channel: string;
-  body: string;
+  message: string;
 }
 
 export interface GetUserOptions {

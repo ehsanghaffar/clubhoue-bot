@@ -18,7 +18,7 @@
     "lint:fix": "eslint --ext .js,.ts . --fix",
     "<----- Utils Related ----->": "",
     "lic": "ts-node ./tools/lic.ts",
-    "loc": "ts-node ./tools/loc.ts"
+    "loc": "npx tsx ./tools/loc.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

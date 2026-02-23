@@ -2,7 +2,7 @@ name: Code Stats Autoupdate
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, develop]
   workflow_dispatch: # Allows manual trigger
 
 jobs:

@@ -127,6 +127,29 @@ const getNewMessages = async (channelId: string): Promise<MappedMessage[]> => {
 
 let intervalId: NodeJS.Timeout | null = null;
 
+/**
+ * @openapi
+ * /chatbot/start:
+ *   post:
+ *     summary: Start the chatbot for a channel
+ *     tags:
+ *       - Chatbot
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - channel
+ *             properties:
+ *               channel:
+ *                 type: string
+ *                 description: Channel ID to run chatbot on
+ *     responses:
+ *       200:
+ *         description: Chatbot started
+ */
 router.post('/start', async (req: Request, res: Response) => {
   const { channel } = req.body as { channel: string };
   const loopFunc = async () => {
@@ -137,6 +160,17 @@ router.post('/start', async (req: Request, res: Response) => {
   res.send('Ok');
 });
 
+/**
+ * @openapi
+ * /chatbot/stop:
+ *   post:
+ *     summary: Stop the running chatbot
+ *     tags:
+ *       - Chatbot
+ *     responses:
+ *       200:
+ *         description: Chatbot stopped
+ */
 router.post('/stop', async (_req: Request, res: Response) => {
   if (intervalId) {
     clearInterval(intervalId);

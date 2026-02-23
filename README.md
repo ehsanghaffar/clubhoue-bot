@@ -1,13 +1,13 @@
 
-![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-4466-blue)
+![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-4465-blue)
 
 ```
 Language                 Files       Lines     Blank     Comment        Code
 ----------------------------------------------------------------------------
-TypeScript                 125        6400       971        1182        4247
+TypeScript                 125        6398       970        1182        4246
 JavaScript                   3         175         1          14         160
 YAML                         2          68         9           0          59
 ----------------------------------------------------------------------------
-Total                      130        6643       981        1196        4466
+Total                      130        6641       980        1196        4465
 ----------------------------------------------------------------------------
 ```$3

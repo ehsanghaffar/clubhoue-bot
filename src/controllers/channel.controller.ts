@@ -3,6 +3,7 @@ import { clubService } from '../services/club-api.service';
 import { channelService } from '../services/channel.service';
 import ValidToken from '../models/token';
 import { startPingLoop, stopPingLoop } from '../utils/pingManager';
+import logger from '../utils/logger';
 
 interface JoinRoomBody {
   channel: string;
@@ -43,7 +44,7 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
     const feed = await channelService.getChannelFeed();
     res.send(feed);
   } catch (error) {
-    console.error('Error getting channel feed:', error);
+    logger.error('Error getting channel feed:', { error });
     res.status(500).send('Error getting channel feed');
   }
 };
@@ -62,7 +63,7 @@ export const joinRoom = async (
 
     res.send(result);
   } catch (error) {
-    console.error('Error joining room:', error);
+    logger.error('Error joining room:', { error });
     res.status(500).send('Error joining room');
   }
 };
@@ -77,7 +78,7 @@ export const leaveRoom = async (
     const result = await clubService.leaveChannel({ channel });
     res.send(result);
   } catch (error) {
-    console.error('Error leaving room:', error);
+    logger.error('Error leaving room:', { error });
     res.status(500).send('Error leaving room');
   }
 };
@@ -91,7 +92,7 @@ export const acceptInvite = async (
     const result = await clubService.acceptSpeakerInvite({ channel });
     res.send(result);
   } catch (error) {
-    console.error('Error accepting invite:', error);
+    logger.error('Error accepting invite:', { error });
     res.status(500).send(error);
   }
 };
@@ -105,7 +106,7 @@ export const getChannelMsgs = async (
     const result = await channelService.getChannelMessages({ channel, order });
     res.send(result);
   } catch (error) {
-    console.error('Error getting channel messages:', error);
+    logger.error('Error getting channel messages:', { error });
     res.status(500).json({
       error: true,
       message: `Error: ${error}`,
@@ -125,7 +126,7 @@ export const sendMessageToRoom = async (
     });
     res.send(result);
   } catch (error) {
-    console.error('Error sending message to room:', error);
+    logger.error('Error sending message to room:', { error });
     res.status(500).json({
       error: true,
       message: `Error: ${error}`,
@@ -141,7 +142,7 @@ export const myProfile = async (
     const profile = await channelService.getUserProfile();
     res.send(profile);
   } catch (error) {
-    console.error('Error getting user profile:', error);
+    logger.error('Error getting user profile:', { error });
     res.status(500).json({
       error: true,
       message: `Error: ${error}`,
@@ -158,7 +159,7 @@ export const getCurrentChannel = async (
     const current = await channelService.getChannelFeed();
     res.send(current);
   } catch (error) {
-    console.error('Error getting current channel:', error);
+    logger.error('Error getting current channel:', { error });
     res.status(500).json({
       error: true,
       message: `Error: ${error}`,
@@ -175,7 +176,7 @@ export const emojiReaction = async (
     const reaction = await clubService.getChannelMessages({ channel });
     res.send(reaction);
   } catch (error) {
-    console.error('Error sending emoji reaction:', error);
+    logger.error('Error sending emoji reaction:', { error });
     res.status(500).json({
       error: true,
       message: `Error: ${error}`,

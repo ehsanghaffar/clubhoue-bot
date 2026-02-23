@@ -40,7 +40,7 @@ type Profile = Application & {
   token?: string
   userId?: string
   deviceId?: string
-  fetchOptions?: any
+  fetchOptions?: Record<string, unknown>
   verified?: boolean
   user?: {
     user_id?: string

@@ -2,13 +2,13 @@ module.exports = {
   root: true,
   env: {
     browser: true,
-    es2022: true,
+    es2021: true,
     node: true,
   },
   extends: ['standard'],
   parser: 'babel-eslint',
   parserOptions: {
-    ecmaVersion: 2022,
+    ecmaVersion: 2021,
     sourceType: 'module',
   },
   rules: {},
@@ -22,7 +22,7 @@ module.exports = {
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: './tsconfig.json',
-        ecmaVersion: 2022,
+        ecmaVersion: 2021,
         sourceType: 'module',
       },
       rules: {

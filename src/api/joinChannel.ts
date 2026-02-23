@@ -4,45 +4,41 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import type { Profile } from '../types/config';
+import type { ApiEndpointOptions } from '../utils/api-factory';
+import { createApiEndpoint } from '../utils/api-factory';
 
 interface JoinChannelOptions {
-  channel?: string
-  source?: string
-  isExplore?: boolean
-  rank?: number
+  channel?: string;
+  source?: string;
+  isExplore?: boolean;
+  rank?: number;
 }
 
-const joinChannel = async (profile: Profile, opts?: JoinChannelOptions): Promise<unknown> => {
-  'use strict'
+const baseJoinChannel = createApiEndpoint({
+  url: '/join_channel',
+  method: 'POST',
+});
 
-  const options: JoinChannelOptions = opts ?? {}
-  options.source = options.source ?? 'feed'
+const joinChannel = async (
+  profile: Profile,
+  opts?: JoinChannelOptions
+): Promise<unknown> => {
+  const options: JoinChannelOptions = opts ?? {};
+  options.source = options.source ?? 'feed';
 
   const attributions = {
     is_explore: options.isExplore,
-    rank: options.rank
-  }
-  const body: { channel?: string; attribution_details?: string; attribution_source?: string } = {}
+    rank: options.rank,
+  };
+  const body: Record<string, unknown> = { channel: options.channel };
 
   if (options.source === 'feed') {
-    body.attribution_details = Buffer.from(JSON.stringify(attributions)).toString('base64')
-    body.attribution_source = options.source ?? 'feed'
+    body.attribution_details = Buffer.from(JSON.stringify(attributions)).toString('base64');
+    body.attribution_source = options.source ?? 'feed';
   }
 
-  body.channel = options.channel
+  return baseJoinChannel(profile, { body });
+};
 
-  const response = await agent(
-    '/join_channel',
-    {
-      body
-    },
-    profile
-  )
-  const data = await response.json()
-
-  return data
-}
-
-export default joinChannel
+export default joinChannel;

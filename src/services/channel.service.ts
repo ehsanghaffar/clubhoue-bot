@@ -1,4 +1,7 @@
+import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../types/services';
+import type { Profile } from '../types/config';
 import { clubService, ClubApiService } from './club-api.service';
+import logger from '../utils/logger';
 
 let fetchChannelMessages: (channelId: string, order?: number) => Promise<unknown[] | null> = async () => null;
 
@@ -13,7 +16,7 @@ export class ChannelService {
     this.clubService = clubServiceInstance ?? clubService;
   }
 
-  async joinChannelWithInviteHandling(channelId: string): Promise<unknown> {
+  async joinChannelWithInviteHandling(channelId: string): Promise<JoinChannelResponse> {
     try {
       const result = await this.clubService.joinChannel({ channel: channelId });
 
@@ -25,7 +28,7 @@ export class ChannelService {
 
       return result;
     } catch (error) {
-      console.error('Error joining channel:', error);
+      logger.error('Error joining channel:', { error });
       throw error;
     }
   }
@@ -36,28 +39,28 @@ export class ChannelService {
         user_profile?: { user_id: number | string };
       }>;
       if (messages) {
-        console.log('Processing invites for channel:', channelId);
+        logger.info('Processing invites for channel:', { channelId });
         for (const invite of messages) {
           if (invite.user_profile?.user_id) {
-            console.log('Inviting user to speakers:', invite.user_profile.user_id);
+            logger.info('Inviting user to speakers:', { userId: invite.user_profile.user_id });
             const result = await this.clubService.inviteToSpeakers({
               channel: channelId,
               user_id: invite.user_profile.user_id,
             });
-            console.log('Invite result:', result);
+            logger.debug('Invite result:', { result });
           }
         }
       }
     } catch (error) {
-      console.error('Error handling invite requests:', error);
+      logger.error('Error handling invite requests:', { error });
     }
   }
 
-  async getChannelFeed(): Promise<unknown> {
+  async getChannelFeed(): Promise<ChannelListResponse> {
     try {
       return await this.clubService.getChannels();
     } catch (error) {
-      console.error('Error getting channel feed:', error);
+      logger.error('Error getting channel feed:', { error });
       throw error;
     }
   }
@@ -66,25 +69,25 @@ export class ChannelService {
     try {
       return await fetchChannelMessages(options.channel, options.order);
     } catch (error) {
-      console.error('Error getting channel messages:', error);
+      logger.error('Error getting channel messages:', { error });
       throw error;
     }
   }
 
-  async sendChannelMessage(options: { channel: string; message: string }): Promise<unknown> {
+  async sendChannelMessage(options: { channel: string; message: string }): Promise<SendMessageResponse> {
     try {
       return await this.clubService.sendChannelMessage(options);
     } catch (error) {
-      console.error('Error sending channel message:', error);
+      logger.error('Error sending channel message:', { error });
       throw error;
     }
   }
 
-  async getUserProfile(): Promise<unknown> {
+  async getUserProfile(): Promise<Profile | null> {
     try {
       return await this.clubService.getProfile();
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      logger.error('Error getting user profile:', { error });
       throw error;
     }
   }

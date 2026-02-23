@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import FormData from 'form-data'
-import { customAlphabet } from 'nanoid'
+const { customAlphabet } = require('nanoid')
 
 import agent from '../helper/agent'
 import type { Profile } from '../types/config'

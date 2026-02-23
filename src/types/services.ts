@@ -80,3 +80,56 @@ export interface InviteToSpeakersOptions {
 export interface ActivePingOptions {
   channel: string;
 }
+
+// Response Type Interfaces
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface ChannelListResponse {
+  items?: Array<unknown>;
+}
+
+export interface ChannelResponse {
+  channel_id?: number;
+  channel?: string;
+  num_speakers?: number;
+  num_all?: number;
+  [key: string]: unknown;
+}
+
+export interface JoinChannelResponse {
+  success?: boolean;
+  user_profile?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface LeaveChannelResponse {
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SendMessageResponse {
+  message_id?: string;
+  created_at?: string;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+export interface UserResponse {
+  user_id?: number;
+  name?: string;
+  username?: string;
+  photo_url?: string;
+  bio?: string;
+  [key: string]: unknown;
+}
+
+export interface EventResponse {
+  event_id?: string;
+  title?: string;
+  description?: string;
+  [key: string]: unknown;
+}

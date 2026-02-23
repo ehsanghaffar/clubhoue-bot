@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import logger from './utils/logger';
 
 dotenv.config();
 process.env.DEBUG = '*';
@@ -33,7 +34,7 @@ const swaggerDefinition = {
 
 const options = {
   swaggerDefinition,
-  apis: ['./dist/routes/*.js', './dist/routes/**/*.js'],
+  apis: process.env.NODE_ENV === 'production' ? ['./dist/routes/*.js', './dist/routes/**/*.js'] : ['./src/routes/**/*.ts'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
@@ -63,39 +64,37 @@ const bootstrap = async (): Promise<void> => {
     const server: http.Server = http.createServer(app);
 
     server.listen(port, () => {
-      console.log(`Server running at http://localhost:${port}`);
+      logger.info(`Server running at http://localhost:${port}`);
     });
 
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        console.error(`Port ${port} is already in use. Kill the running process or change PORT.`);
+        logger.error(`Port ${port} is already in use. Kill the running process or change PORT.`);
         process.exit(1);
       }
-      console.error('Server error:', err);
+      logger.error('Server error:', { error: err });
       process.exit(1);
     });
 
     process.on('SIGINT', () => {
-      console.log('Received SIGINT — shutting down');
       server.close(() => process.exit(0));
     });
 
     process.on('SIGTERM', () => {
-      console.log('Received SIGTERM — shutting down');
       server.close(() => process.exit(0));
     });
 
     process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      logger.error('Unhandled Rejection at:', { promise, reason });
+      process.exit(1);
     });
 
     process.on('uncaughtException', (err: Error) => {
-      console.error('Uncaught Exception thrown:', err);
+      logger.error('Uncaught Exception thrown:', { error: err });
       process.exit(1);
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('Bootstrap failed:', message);
     process.exit(1);
   }
 };

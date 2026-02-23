@@ -11,5 +11,5 @@ type ClubhouseApiResult<T> = ({ success: true } & T) | { success: false, error_m
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export declare class Client {
   constructor (options: { profile: Profile })
-  [k: string]: <T>(...params: any) => Promise<ClubhouseApiResult<T>>
+  [k: string]: <T>(...params: unknown[]) => Promise<ClubhouseApiResult<T>>
 }

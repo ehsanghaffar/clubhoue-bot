@@ -10,12 +10,17 @@ import type {
   AcceptSpeakerInviteOptions,
   InviteToSpeakersOptions,
   ActivePingOptions,
+  ChannelListResponse,
+  JoinChannelResponse,
+  LeaveChannelResponse,
+  SendMessageResponse,
+  UserResponse,
 } from '../types/services';
+import logger from '../utils/logger';
 
 export class ClubApiService {
   private profile: Profile | null = null;
   private agent: AgentFunction | null = null;
-  private debug: (...args: unknown[]) => void = console.log;
 
   constructor(profile: Profile | null = null, agent: AgentFunction | null = null) {
     this.profile = profile;
@@ -30,20 +35,16 @@ export class ClubApiService {
     this.agent = agent;
   }
 
-  setDebug(debugFn: (...args: unknown[]) => void): void {
-    this.debug = debugFn;
-  }
-
   private ensureConfigured(): void {
     if (!this.agent || !this.profile) {
       throw new Error('Agent and profile not configured');
     }
   }
 
-  async getChannels(): Promise<unknown> {
+  async getChannels(): Promise<ChannelListResponse> {
     this.ensureConfigured();
     try {
-      this.debug('Getting channels...');
+      logger.debug('Getting channels...');
       const response = await this.agent!(
         '/get_feed_v3?get_unconnected_rooms=true',
         { body: {} },
@@ -52,12 +53,12 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error getting channels:', message);
-      return [];
+      logger.error('Error getting channels:', { error: message });
+      return {};
     }
   }
 
-  async joinChannel(opts: JoinChannelOptions): Promise<unknown> {
+  async joinChannel(opts: JoinChannelOptions): Promise<JoinChannelResponse> {
     this.ensureConfigured();
     try {
       const source = opts.source ?? 'feed';
@@ -72,20 +73,20 @@ export class ClubApiService {
         body.attribution_source = source;
       }
 
-      this.debug('Joining channel:', opts.channel);
+      logger.debug('Joining channel:', { channel: opts.channel });
       const response = await this.agent!('/join_channel', { body }, this.profile!);
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error joining channel:', message);
+      logger.error('Error joining channel:', { error: message });
       return { success: false };
     }
   }
 
-  async leaveChannel(opts: LeaveChannelOptions): Promise<unknown> {
+  async leaveChannel(opts: LeaveChannelOptions): Promise<LeaveChannelResponse> {
     this.ensureConfigured();
     try {
-      this.debug('Leaving channel:', opts.channel);
+      logger.debug('Leaving channel:', { channel: opts.channel });
       const response = await this.agent!(
         '/leave_channel',
         { body: { channel: opts.channel } },
@@ -94,15 +95,15 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error leaving channel:', message);
+      logger.error('Error leaving channel:', { error: message });
       return { success: false };
     }
   }
 
-  async getChannelMessages(opts: GetChannelMessagesOptions): Promise<unknown> {
+  async getChannelMessages(opts: GetChannelMessagesOptions): Promise<Record<string, unknown>> {
     this.ensureConfigured();
     try {
-      this.debug('Getting channel messages:', opts.channel);
+      logger.debug('Getting channel messages:', { channel: opts.channel });
       const response = await this.agent!(
         '/get_channel_messages',
         {
@@ -116,15 +117,15 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error getting messages:', message);
+      logger.error('Error getting messages:', { error: message });
       return { messages: [] };
     }
   }
 
-  async sendChannelMessage(opts: SendChannelMessageOptions): Promise<unknown> {
+  async sendChannelMessage(opts: SendChannelMessageOptions): Promise<SendMessageResponse> {
     this.ensureConfigured();
     try {
-      this.debug('Sending channel message');
+      logger.debug('Sending channel message');
       const response = await this.agent!(
         '/send_channel_message',
         { body: { channel: opts.channel, message: opts.message } },
@@ -133,16 +134,16 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error sending message:', message);
+      logger.error('Error sending message:', { error: message });
       return { success: false };
     }
   }
 
-  async getUser(opts: GetUserOptions): Promise<unknown> {
+  async getUser(opts: GetUserOptions): Promise<UserResponse> {
     this.ensureConfigured();
     try {
       const userId = opts.user_id ?? opts.id;
-      this.debug('Getting user:', userId);
+      logger.debug('Getting user:', { userId });
       const response = await this.agent!(
         '/get_profile',
         { body: { user_id: userId } },
@@ -151,16 +152,16 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error getting user:', message);
-      return { user_profile: null };
+      logger.error('Error getting user:', { error: message });
+      return { user_id: undefined };
     }
   }
 
-  async searchUsers(query: string | SearchUsersOptions): Promise<unknown> {
+  async searchUsers(query: string | SearchUsersOptions): Promise<Record<string, unknown>> {
     this.ensureConfigured();
     try {
       const opts: SearchUsersOptions = typeof query === 'string' ? { query } : query ?? {};
-      this.debug('Searching users:', opts.query);
+      logger.debug('Searching users:', { query: opts.query });
       const response = await this.agent!(
         '/search_users',
         {
@@ -176,7 +177,7 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error searching users:', message);
+      logger.error('Error searching users:', { error: message });
       return { users: [] };
     }
   }
@@ -184,19 +185,19 @@ export class ClubApiService {
   async getProfile(): Promise<Profile | null> {
     this.ensureConfigured();
     try {
-      this.debug('Getting profile');
+      logger.debug('Getting profile');
       return this.profile;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error getting profile:', message);
-      return this.profile ?? {};
+      logger.error('Error getting profile:', { error: message });
+      return this.profile ?? null;
     }
   }
 
-  async acceptSpeakerInvite(opts: AcceptSpeakerInviteOptions): Promise<unknown> {
+  async acceptSpeakerInvite(opts: AcceptSpeakerInviteOptions): Promise<Record<string, unknown>> {
     this.ensureConfigured();
     try {
-      this.debug('Accepting speaker invite:', opts.channel);
+      logger.debug('Accepting speaker invite:', { channel: opts.channel });
       const response = await this.agent!(
         '/accept_speaker_invite',
         { body: { channel: opts.channel } },
@@ -205,15 +206,15 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error accepting speaker invite:', message);
+      logger.error('Error accepting speaker invite:', { error: message });
       return { success: false };
     }
   }
 
-  async inviteToSpeakers(opts: InviteToSpeakersOptions): Promise<unknown> {
+  async inviteToSpeakers(opts: InviteToSpeakersOptions): Promise<Record<string, unknown>> {
     this.ensureConfigured();
     try {
-      this.debug('Inviting to speakers:', opts.user_id);
+      logger.debug('Inviting to speakers:', { userId: opts.user_id });
       const response = await this.agent!(
         '/invite_speaker',
         { body: { channel: opts.channel, user_id: opts.user_id } },
@@ -222,15 +223,15 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error inviting speaker:', message);
+      logger.error('Error inviting speaker:', { error: message });
       return { success: false };
     }
   }
 
-  async activePing(opts: ActivePingOptions): Promise<unknown> {
+  async activePing(opts: ActivePingOptions): Promise<Record<string, unknown>> {
     this.ensureConfigured();
     try {
-      this.debug('Active ping for channel:', opts.channel);
+      logger.debug('Active ping for channel:', { channel: opts.channel });
       const response = await this.agent!(
         '/active_ping',
         { body: { channel: opts.channel } },
@@ -239,7 +240,7 @@ export class ClubApiService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.debug('Error active ping:', message);
+      logger.error('Error active ping:', { error: message });
       return { success: false };
     }
   }

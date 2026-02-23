@@ -4,6 +4,7 @@ import openai from '../services/openai.service';
 import countCharacters from '../utils/calculateCharacters';
 import { getNewMessages as getNewMessagesFromCache, markMessagesSeen } from '../utils/messageCache';
 import { constants } from '../config';
+import logger from '../utils/logger';
 
 interface ChannelMessage {
   message_id: string;
@@ -44,7 +45,7 @@ const fetchChannelMessages = async (channel: string): Promise<MappedMessage[]> =
     }));
     return mappedMessages;
   } catch (error) {
-    console.log(error);
+    logger.error('Error fetching channel messages in chatbot:', { error });
     return [];
   }
 };
@@ -95,7 +96,7 @@ const sendToOpenAI = async (
       };
     }
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    logger.error('OpenAI API error:', { error });
   }
   return null;
 };
@@ -110,7 +111,7 @@ const sendToClub = async (
       message: response.message,
     });
   } catch (error) {
-    console.error('Club API error:', error);
+    logger.error('Club API error:', { error });
   }
 };
 

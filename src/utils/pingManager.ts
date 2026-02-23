@@ -1,3 +1,5 @@
+import logger from './logger';
+
 interface PingLoopInfo {
   timeoutId: NodeJS.Timeout;
   startedAt: number;
@@ -29,12 +31,12 @@ export const startPingLoop = (channel: string): void => {
       }
 
       if (ping.should_leave) {
-        console.log('should_leave', ping);
+        logger.info('should_leave signal received', { ping });
         await clubApiService().joinChannel({ channel, source: 'feed' });
         stopPingLoop(channel);
       }
     } catch (error) {
-      console.error('Ping loop error:', error);
+      logger.error('Ping loop error:', { error });
       stopPingLoop(channel);
     }
   };
@@ -54,14 +56,14 @@ export const stopPingLoop = (channel: string): void => {
 export const getActiveLoops = (): string[] => Array.from(activePingLoops.keys());
 
 process.on('SIGTERM', () => {
-  console.log('Stopping all ping loops...');
+  logger.info('Stopping all ping loops on SIGTERM');
   for (const channel of activePingLoops.keys()) {
     stopPingLoop(channel);
   }
 });
 
 process.on('SIGINT', () => {
-  console.log('Stopping all ping loops...');
+  logger.info('Stopping all ping loops on SIGINT');
   for (const channel of activePingLoops.keys()) {
     stopPingLoop(channel);
   }

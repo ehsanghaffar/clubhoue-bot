@@ -50,7 +50,7 @@ export interface ChannelLoggingContext {
   feed_rank:             number;
   is_explore:            boolean;
   speaker_ids:           number[];
-  lisener_ids:           any[];
+  lisener_ids:           number[];
   type:                  number;
   has_language_mismatch: boolean;
   current_channel_id:    number;
@@ -100,7 +100,7 @@ export interface Conversation {
   is_subscribed:          boolean;
   permissions:            Permissions;
   target_type:            TargetType;
-  pending_participants:   any[];
+  pending_participants:   number[];
   short_title:            string;
   social_club_id:         number | null;
   social_club_name:       null | string;

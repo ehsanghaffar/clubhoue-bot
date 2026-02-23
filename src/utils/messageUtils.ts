@@ -1,4 +1,5 @@
 import { clubService } from '../services/club-api.service';
+import logger from './logger';
 
 interface ChannelMessage {
   message_id: string;
@@ -23,7 +24,7 @@ export const fetchChannelMessages = async (
     })) as ChannelMessagesResult;
     return result.messages ?? [];
   } catch (error) {
-    console.error('Error fetching channel messages:', error);
+    logger.error('Error fetching channel messages:', { error });
     return [];
   }
 };

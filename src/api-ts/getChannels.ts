@@ -6,24 +6,23 @@
  */
 
 import { HttpService } from "../lib/httpservice";
+import { Profile } from "../types/config";
+import logger from "../utils/logger";
 
-const httpService = new HttpService({ baseURL: 'https://example.com/api' })
+const httpService = new HttpService({ baseURL: 'https://api.clubhouse.com' })
 
-interface Profile {
-  // Define the profile type here.
-  // Example: userId: string;
-  userId: string;
-  // Add other properties as needed.
+interface ApiResponse<T = unknown> {
+  data: T;
 }
 
-const getChannels = async (profile: Profile): Promise<any> => {
+const getChannels = async (profile: Profile): Promise<unknown> => {
   try {
-    const response = await httpService.get<any>('/get_feed_v3?get_unconnected_rooms=true', '(null)');
+    const response = await httpService.get<ApiResponse>('/get_feed_v3?get_unconnected_rooms=true', '(null)');
     const data = response.data;
     return data;
   } catch (error) {
     // Handle errors here.
-    console.error('Error:', error);
+    logger.error('Error getting channels:', { error });
     throw error;
   }
 };

@@ -4,24 +4,29 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import type { Profile } from '../types/config';
+import type { ApiEndpointOptions } from '../utils/api-factory';
+import { createApiEndpoint } from '../utils/api-factory';
 
-const getUser = async (profile: Profile, id: string | number): Promise<unknown> => {
-  'use strict'
+const baseGetUser = createApiEndpoint({
+  url: '/get_profile',
+  method: 'POST',
+});
 
-  const response = await agent(
-    '/get_profile',
-    {
-      body: {
-        user_id: id
-      }
-    },
-    profile
-  )
-  const data = await response.json()
+// Wrapper to support both options object and direct ID parameter (backward compatibility)
+const getUser = async (
+  profile: Profile,
+  idOrOptions?: string | number | ApiEndpointOptions
+): Promise<unknown> => {
+  let options: ApiEndpointOptions = { body: {} };
 
-  return data
-}
+  if (typeof idOrOptions === 'string' || typeof idOrOptions === 'number') {
+    options = { body: { user_id: idOrOptions } };
+  } else if (idOrOptions) {
+    options = idOrOptions;
+  }
 
-export default getUser
+  return baseGetUser(profile, options);
+};
+
+export default getUser;

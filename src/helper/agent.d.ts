@@ -7,5 +7,5 @@
 import fetch from 'cross-fetch'
 import { Profile } from '../config'
 
-declare function agent (url: string, options: any, customs: Profile): ReturnType<typeof fetch>
+declare function agent (url: string, options: unknown, customs: Profile): ReturnType<typeof fetch>
 export default agent

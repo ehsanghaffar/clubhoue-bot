@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError, ERROR_TYPES } from '../utils/errors';
+import logger from '../utils/logger';
 import type { AuthenticatedRequest, DecodedToken } from '../types/express';
 
 const jwtPrivateKey = process.env.JWT_PRIVATE_KEY;
@@ -57,7 +58,7 @@ export const errorHandler = (
   _next: NextFunction
 ): void => {
   if (!req || !res) {
-    console.error('Error handler called with invalid arguments:', err);
+    logger.error('Error handler called with invalid arguments:', { err });
     return;
   }
 

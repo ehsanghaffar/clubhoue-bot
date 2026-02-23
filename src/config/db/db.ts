@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import logger from '../../utils/logger';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ interface ConnectionParams {
 const connectDB = async (): Promise<typeof mongoose> => {
   try {
     const mongoURL = normalizeMongoURL(process.env.MONGODB_URL);
-    console.log('Connecting to MongoDB:', mongoURL.replace(/\/\/.*@/, '//***@'));
+    logger.info('Connecting to MongoDB:', { url: mongoURL.replace(/\/\/.*@/, '//***@') });
 
     const connectionParams: ConnectionParams = {
       useNewUrlParser: true,
@@ -32,13 +33,13 @@ const connectDB = async (): Promise<typeof mongoose> => {
     };
 
     await mongoose.connect(mongoURL, connectionParams);
-    console.log('✓ Connected to Database successfully');
+    logger.info('Connected to Database successfully');
     return mongoose;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('✗ Database connection failed:', message);
-    console.error('  Connection URL:', normalizeMongoURL(process.env.MONGODB_URL));
-    console.error('  Make sure MongoDB is running on 127.0.0.1:27017');
+    logger.error('Database connection failed:', { error: message });
+    logger.error('Connection URL:', { url: normalizeMongoURL(process.env.MONGODB_URL) });
+    logger.error('Make sure MongoDB is running on 127.0.0.1:27017');
     process.exit(1);
   }
 };

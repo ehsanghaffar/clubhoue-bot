@@ -4,14 +4,15 @@ import { clubService } from './club-api.service';
 import type { AgentFunction } from '../types/services';
 import type { Profile } from '../types/config';
 import agent from '../helper/agent';
+import logger from '../utils/logger';
 
 export function initializeService(): void {
   try {
     const profilePath = path.join(process.cwd(), 'profile.json');
 
     if (!fs.existsSync(profilePath)) {
-      console.warn('⚠️  profile.json not found at', profilePath);
-      console.warn('Service will operate without credentials. Login first.');
+      logger.warn('profile.json not found at', { path: profilePath });
+      logger.warn('Service will operate without credentials. Login first.');
       return;
     }
 
@@ -30,14 +31,14 @@ export function initializeService(): void {
     clubService.setProfile(profile);
     clubService.setAgent(agentFunction);
 
-    console.log('✓ ClubApiService initialized with profile:', {
+    logger.info('ClubApiService initialized with profile:', {
       user: profile.user?.username ?? 'unknown',
       userId: profile.user?.user_id ?? 'unknown',
       verified: profile.verified ?? false,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('Failed to initialize ClubApiService:', message);
+    logger.error('Failed to initialize ClubApiService:', { error: message });
     throw error;
   }
 }

@@ -1,10 +1,5 @@
 "use strict";
-/**
- * @license
- * @copyright Ehsan Gi.
- * Licensed under the MIT License. See LICENSE in the project root for license information.
- * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
- */
+
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);

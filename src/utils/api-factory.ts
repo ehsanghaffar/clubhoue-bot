@@ -1,4 +1,10 @@
 /**
+ * @license
+ * @copyright Ehsanghaffar.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
+ */
+/**
  * API Factory - Creates standardized, type-safe API endpoint wrappers
  * Consolidates common patterns across 55+ API files and adds consistent error handling
  */

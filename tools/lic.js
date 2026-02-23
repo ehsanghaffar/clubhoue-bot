@@ -8,7 +8,7 @@ const commander_1 = __importDefault(require("commander"));
 const glob_1 = require("glob");
 const licenseContent = `/**
  * @license
- * @copyright Ehsan Gi.
+ * @copyright Ehsanghaffar.
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */

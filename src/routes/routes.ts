@@ -1,3 +1,9 @@
+/**
+ * @license
+ * @copyright Ehsanghaffar.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
+ */
 import { Router } from 'express';
 import profilesRoutes from './profiles.routes';
 import usersRoutes from './users.routes';

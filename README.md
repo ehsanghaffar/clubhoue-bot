@@ -1,16 +1,3 @@
-![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-4352-blue)
-
-```
-Language                 Files       Lines     Blank     Comment        Code
-----------------------------------------------------------------------------
-TypeScript                 124        6396       970        1181        4245
-YAML                         2          68         9           0          59
-JavaScript                   1          53         1           4          48
-----------------------------------------------------------------------------
-Total                      127        6517       980        1185        4352
-----------------------------------------------------------------------------
-```
-
 # Clubhouse Full API Bot
 
 An **unofficial Node.js/Express backend** that acts as a bot and API wrapper for the **Clubhouse social audio platform**. It provides REST endpoints for profile management, user search, channel/room control, chatbot automation, and a channel-based Pomodoro timer.

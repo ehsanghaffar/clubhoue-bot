@@ -1,37 +1,18 @@
-![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-4352-blue)
-
-```
-Language                 Files       Lines     Blank     Comment        Code
-----------------------------------------------------------------------------
-TypeScript                 124        6396       970        1181        4245
-YAML                         2          68         9           0          59
-JavaScript                   1          53         1           4          48
-----------------------------------------------------------------------------
-Total                      127        6517       980        1185        4352
-----------------------------------------------------------------------------
-```
-
-
-![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-4352-blue)
-
 # Clubhouse Full API Bot
 
-An **unofficial Node.js/Express backend** that acts as a bot and API wrapper for the **Clubhouse social audio platform**. It provides REST endpoints for rooms, channels, users, clubs, events, and messaging, plus an **OpenAI-powered chatbot** and a **Pomodoro timer** for channel-based automation.
+An **unofficial Node.js/Express backend** that acts as a bot and API wrapper for the **Clubhouse social audio platform**. It provides REST endpoints for profile management, user search, channel/room control, chatbot automation, and a channel-based Pomodoro timer.
 
 ---
 
 ## Features
 
-- **Room Management** — Join/leave rooms, accept speaker invites, invite speakers, active ping to maintain presence
-- **Channel Messaging** — Send/receive messages, emoji reactions, manage channels (create, public/social)
-- **User & Club Operations** — Search users/clubs, follow/unfollow, get profiles, followers, following lists
-- **Events** — Create, edit, delete, and list Clubhouse events
-- **Topics** — Add/remove topics, browse users and clubs by topic
-- **Notifications** — Fetch and update notification settings
-- **AI Chatbot** — GPT-powered bot that answers questions in rooms (triggered by `#` prefix)
-- **Pomodoro Timer** — Configurable timer for channel-based productivity sessions
-- **Swagger API Docs** — Interactive API documentation at `/api-docs`
-- **Docker Support** — One-command setup with MongoDB
+- **Channel & Room Management** — Join rooms, leave rooms, accept speaker invites, request room users, send room messages, and fetch the active channel feed
+- **Profile Management** — Save and switch Clubhouse auth tokens, search users, accept invites, and fetch stored tokens
+- **User Search** — Search Clubhouse users by query string
+- **AI Chatbot** — Poll channel messages for `#` prefixed questions and reply using OpenAI
+- **Pomodoro Timer** — Start a channel timer with emoji notifications for productivity workflows
+- **Swagger API Docs** — Interactive documentation available at `/api-docs`
+- **Docker Support** — Compose-based development environment with built-in MongoDB
 
 ---
 
@@ -83,19 +64,21 @@ OPENAI_API_KEY=sk-...
 AGORA_KEY=
 PUBNUB_PUB_KEY=
 PUBNUB_SUB_KEY=
+LOG_LEVEL=info
 ```
 
-### Authentication
+### Authentication and Session Profile
 
-The app requires a `profile.json` in the project root with your Clubhouse session credentials. This file is loaded at startup by the service initializer and is **gitignored**. It should contain:
+The app expects a `profile.json` file in the project root. It is loaded at startup by `src/services/service-initializer.ts` and is typically **gitignored**.
+
+The file should contain Clubhouse session data, including at least one of the following:
 
 - `token` — Clubhouse auth token
-- `userId` — Your user ID
-- `deviceId` — Device identifier
-- `apiRoot` — Clubhouse API base URL
-- `userAgent` / `appVersion` — Client fingerprint
-- `pubnub` — PubNub keys for real-time messaging
-- `agoraKey` — Agora key for audio rooms
+- `auth_token` — alternate auth token field
+- `deviceId` — device identifier
+- additional Clubhouse profile fields as required by the mobile API wrapper
+
+The `/profiles` routes can also add or update stored profile tokens.
 
 ### Run
 
@@ -125,9 +108,12 @@ This starts the app on port `4000` and MongoDB on port `27020`.
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run compiled production build |
 | `npm run start:dev` | Run directly via ts-node |
+| `npm run start:proxy` | Run the server with `proxy-config.json` |
 | `npm run typecheck` | Type-check without emitting |
 | `npm run lint` | Lint all source files |
 | `npm run lint:fix` | Lint and auto-fix |
+| `npm run lic` | Run license tooling |
+| `npm run loc` | Count lines of code |
 | `npm run stop` | Stop PM2-managed process |
 
 ---
@@ -137,39 +123,42 @@ This starts the app on port `4000` and MongoDB on port `27020`.
 ### Profiles
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/profiles` | Add profile (save Clubhouse auth data) |
-| GET | `/profiles/search` | Search Clubhouse users |
-| GET | `/profiles/:username` | Get user by username |
+| POST | `/profiles/add_profile` | Add a new profile token |
+| POST | `/profiles/change-profile` | Change the active profile token in `profile.json` |
+| POST | `/profiles/search_users` | Search for Clubhouse users |
+| POST | `/profiles/accept_invite` | Accept a speaker invite for a username |
+| POST | `/profiles/get_user` | Get a user by ID |
+| GET | `/profiles/all_users` | List stored profile tokens |
+| GET | `/profiles/get_token` | Get the current profile token |
 
 ### Users
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/users/following` | Get users you follow |
-| GET | `/users/followers` | Get your followers |
-| POST | `/users/follow` | Follow a user |
-| POST | `/users/unfollow` | Unfollow a user |
-| GET | `/users/suggested` | Get suggested follows |
+| POST | `/users/search_users` | Search users by query string |
 
 ### Channels
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/channels` | List available channels |
-| GET | `/channels/:channelId` | Get channel details |
-| POST | `/channels/join` | Join a channel |
-| POST | `/channels/leave` | Leave a channel |
-| POST | `/channels/message` | Send a channel message |
-| POST | `/channels/accept-speaker` | Accept speaker invite |
-| POST | `/channels/invite-speaker` | Invite speaker |
+| POST | `/channels/join_room` | Join a room/channel |
+| POST | `/channels/accept_invite` | Accept a speaker invite in a channel |
+| POST | `/channels/get_room_users` | Get users in a room |
+| POST | `/channels/leave` | Leave a room/channel |
+| POST | `/channels/channels` | Get the channel feed |
+| POST | `/channels/current-channel` | Get the current active channel |
+| POST | `/channels/room-msgs` | Get room messages |
+| POST | `/channels/send-room-msg` | Send a message to a room |
+| POST | `/channels/me` | Get the current user profile from Clubhouse |
 
 ### Chatbot
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/chatbot/message` | Ask the AI chatbot a question |
+| POST | `/chatbot/start` | Start the chatbot polling loop for a channel |
+| POST | `/chatbot/stop` | Stop the chatbot polling loop |
 
 ### Channel Timer
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/channel/timer` | Manage Pomodoro timer |
+| POST | `/channel/start-timer` | Start a Pomodoro timer for a channel |
 
 Full interactive documentation is available at `/api-docs` when the server is running.
 

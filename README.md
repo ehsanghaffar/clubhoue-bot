@@ -20,7 +20,7 @@ An **unofficial Node.js/Express backend** that acts as a bot and API wrapper for
 
 | Layer | Technology |
 |-------|-----------|
-| Runtime | Node.js 18 |
+| Runtime | Node.js 22 |
 | Framework | Express 4 |
 | Language | TypeScript 4 |
 | Database | MongoDB 6 (Mongoose 6) |
@@ -37,7 +37,7 @@ An **unofficial Node.js/Express backend** that acts as a bot and API wrapper for
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - MongoDB 6 (or Docker)
 - A Clubhouse account with `profile.json` (see [Authentication](#authentication))
 - (Optional) OpenAI API key for chatbot features
@@ -108,7 +108,6 @@ This starts the app on port `4000` and MongoDB on port `27020`.
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run compiled production build |
 | `npm run start:dev` | Run directly via ts-node |
-| `npm run start:proxy` | Run the server with `proxy-config.json` |
 | `npm run typecheck` | Type-check without emitting |
 | `npm run lint` | Lint all source files |
 | `npm run lint:fix` | Lint and auto-fix |
@@ -175,7 +174,6 @@ src/
 │   └── profile/               # Auth profile loader
 ├── controllers/               # Route handler logic
 ├── helper/                    # Custom HTTP agent for Clubhouse API
-├── lib/                       # Axios-based HTTP service wrapper
 ├── middlewares/               # JWT auth & error handling
 ├── models/                    # Mongoose schemas (User, Token, RoomMessage, RoomUser)
 ├── routes/                    # Express route definitions

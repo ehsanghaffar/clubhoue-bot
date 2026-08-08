@@ -2,7 +2,11 @@
   "name": "clubhouse-full-api",
   "version": "1.0",
   "main": "dist/server.js",
-  "author": "Ehsan Ghaffar <info@ehsanghaffarii.ir>",
+  "author": {
+    "email": "ghafarweb@gmail.com",
+    "name": "Ein",
+    "url": "https://eindev.ir"
+  },
   "license": "MIT",
   "scripts": {
     "start": "node dist/server.js",

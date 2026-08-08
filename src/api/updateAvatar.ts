@@ -6,10 +6,13 @@
  */
 
 import FormData from 'form-data'
-const { customAlphabet } = require('nanoid')
 
 import agent from '../helper/agent'
 import type { Profile } from '../types/config'
+// nanoid is dual-format (ESM + CJS). Under `moduleResolution: node16` TypeScript
+// cannot statically import it from this CommonJS file, so use require() directly.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { customAlphabet } = require('nanoid')
 
 const random = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 16)
 

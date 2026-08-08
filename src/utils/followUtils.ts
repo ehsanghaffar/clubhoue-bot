@@ -4,29 +4,21 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import agent from '../helper/agent';
-import type { Profile } from '../types/config';
+import agent from '../helper/agent'
+import type { Profile } from '../types/config'
 
 interface FollowUserOptions {
-  userId?: number;
+  userId?: number
 }
 
 interface FollowClubOptions {
-  clubId?: number;
+  clubId?: number
 }
 
-type FollowOptions = FollowUserOptions | FollowClubOptions | number;
+type FollowOptions = FollowUserOptions | FollowClubOptions | number
 
-interface FollowRequestBody {
-  source: number;
-  source_topic_id: null;
-  user_id?: number;
-  user_ids?: null;
-  club_id?: number;
-}
-
-type FollowAction = 'follow' | 'unfollow';
-type FollowType = 'user' | 'club';
+type FollowAction = 'follow' | 'unfollow'
+type FollowType = 'user' | 'club'
 
 const followOperation = async (
   action: FollowAction,
@@ -34,62 +26,62 @@ const followOperation = async (
   profile: Profile,
   opts?: FollowOptions
 ): Promise<unknown> => {
-  'use strict';
+  'use strict'
 
-  let options: FollowUserOptions | FollowClubOptions;
+  let options: FollowUserOptions | FollowClubOptions
 
   if (typeof opts === 'number') {
     options =
-      type === 'user' ? { userId: opts } : { clubId: opts };
+      type === 'user' ? { userId: opts } : { clubId: opts }
   } else {
-    options = (opts ?? {}) as FollowUserOptions | FollowClubOptions;
+    options = (opts ?? {})
   }
 
-  const endpoint = `/${action}`;
+  const endpoint = `/${action}`
   const body: Record<string, unknown> = {
     source: 9,
-    source_topic_id: null,
-  };
-
-  if (type === 'user') {
-    body.user_id = (options as FollowUserOptions).userId ?? -1;
-    body.user_ids = null;
-  } else if (type === 'club') {
-    body.club_id = (options as FollowClubOptions).clubId ?? -1;
+    source_topic_id: null
   }
 
-  const response = await agent(endpoint, { body }, profile);
-  const data = await response.json();
+  if (type === 'user') {
+    body.user_id = (options as FollowUserOptions).userId ?? -1
+    body.user_ids = null
+  } else if (type === 'club') {
+    body.club_id = (options as FollowClubOptions).clubId ?? -1
+  }
 
-  return data;
-};
+  const response = await agent(endpoint, { body }, profile)
+  const data = await response.json()
+
+  return data
+}
 
 export const followUser = async (
   profile: Profile,
   opts?: FollowOptions
 ): Promise<unknown> => {
-  return followOperation('follow', 'user', profile, opts);
-};
+  return await followOperation('follow', 'user', profile, opts)
+}
 
 export const unfollowUser = async (
   profile: Profile,
   userId: number
 ): Promise<unknown> => {
-  return followOperation('unfollow', 'user', profile, userId);
-};
+  return await followOperation('unfollow', 'user', profile, userId)
+}
 
 export const followClub = async (
   profile: Profile,
   opts?: FollowOptions
 ): Promise<unknown> => {
-  return followOperation('follow', 'club', profile, opts);
-};
+  return await followOperation('follow', 'club', profile, opts)
+}
 
 export const unfollowClub = async (
   profile: Profile,
   opts?: FollowOptions
 ): Promise<unknown> => {
-  return followOperation('unfollow', 'club', profile, opts);
-};
+  return await followOperation('unfollow', 'club', profile, opts)
+}
 
-export { followOperation };
+export { followOperation }

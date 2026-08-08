@@ -4,46 +4,46 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import mongoose, { Schema, Document, Types } from 'mongoose';
-import type { IRoomMessage, IRoomMessageDocument } from '../types/models';
+import mongoose, { Schema } from 'mongoose'
+import type { IRoomMessageDocument } from '../types/models'
 
-type RoomMessageModel = mongoose.Model<IRoomMessageDocument>;
+type RoomMessageModel = mongoose.Model<IRoomMessageDocument>
 
 const roomMessageSchema = new Schema<IRoomMessageDocument, RoomMessageModel>({
   message_id: {
     type: String,
     required: true,
-    unique: true,
+    unique: true
   },
   message: {
     type: String,
-    required: true,
+    required: true
   },
   user_name: {
     type: String,
-    required: true,
+    required: true
   },
   user_id: {
     type: String,
-    required: false,
+    required: false
   },
   is_send_answer_to_club: {
     type: Boolean,
-    required: true,
+    required: true
   },
   is_answerd: {
     type: Boolean,
-    required: false,
+    required: false
   },
   gpt_answer: {
     type: String,
-    required: false,
-  },
-});
+    required: false
+  }
+})
 
 const RoomMessage = mongoose.model<IRoomMessageDocument, RoomMessageModel>(
   'roomMessage',
   roomMessageSchema
-);
+)
 
-export default RoomMessage;
+export default RoomMessage

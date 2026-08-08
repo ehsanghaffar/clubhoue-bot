@@ -4,25 +4,25 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import mongoose, { Schema, Document, Types } from 'mongoose';
-import type { IValidToken, IValidTokenDocument } from '../types/models';
+import mongoose, { Schema } from 'mongoose'
+import type { IValidTokenDocument } from '../types/models'
 
-type ValidTokenModel = mongoose.Model<IValidTokenDocument>;
+type ValidTokenModel = mongoose.Model<IValidTokenDocument>
 
 const validTokenSchema = new Schema<IValidTokenDocument, ValidTokenModel>({
   token: {
     required: true,
-    type: String,
+    type: String
   },
   name: {
     required: false,
-    type: String,
-  },
-});
+    type: String
+  }
+})
 
 const ValidToken = mongoose.model<IValidTokenDocument, ValidTokenModel>(
   'validToken',
   validTokenSchema
-);
+)
 
-export default ValidToken;
+export default ValidToken

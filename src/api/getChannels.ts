@@ -5,16 +5,15 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import type { Profile } from '../types/config';
-import { createApiEndpoint } from '../utils/api-factory';
+import { createApiEndpoint } from '../utils/api-factory'
 
 const getChannels = createApiEndpoint({
   url: '/get_feed_v3?get_unconnected_rooms=true',
   method: 'POST',
   defaultOptions: {
-    body: {},
+    body: {}
   },
-  parseUserId: true,
-});
+  parseUserId: true
+})
 
-export default getChannels;
+export default getChannels

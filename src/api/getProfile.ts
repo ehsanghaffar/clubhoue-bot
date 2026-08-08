@@ -14,10 +14,8 @@ interface GetProfileOptions {
   includeFollowings?: boolean
 }
 
-const getProfile = async (profile: Profile, opts?: GetProfileOptions): Promise<unknown> => {
+const getProfile = async (profile: Profile, _opts?: GetProfileOptions): Promise<unknown> => {
   'use strict'
-
-  const _options = opts ?? {}
 
   const response = await agent(
     '/me',

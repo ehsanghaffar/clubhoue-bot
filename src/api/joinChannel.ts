@@ -5,41 +5,40 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import type { Profile } from '../types/config';
-import type { ApiEndpointOptions } from '../utils/api-factory';
-import { createApiEndpoint } from '../utils/api-factory';
+import type { Profile } from '../types/config'
+import { createApiEndpoint } from '../utils/api-factory'
 
 interface JoinChannelOptions {
-  channel?: string;
-  source?: string;
-  isExplore?: boolean;
-  rank?: number;
+  channel?: string
+  source?: string
+  isExplore?: boolean
+  rank?: number
 }
 
 const baseJoinChannel = createApiEndpoint({
   url: '/join_channel',
-  method: 'POST',
-});
+  method: 'POST'
+})
 
 const joinChannel = async (
   profile: Profile,
   opts?: JoinChannelOptions
 ): Promise<unknown> => {
-  const options: JoinChannelOptions = opts ?? {};
-  options.source = options.source ?? 'feed';
+  const options: JoinChannelOptions = opts ?? {}
+  options.source = options.source ?? 'feed'
 
   const attributions = {
     is_explore: options.isExplore,
-    rank: options.rank,
-  };
-  const body: Record<string, unknown> = { channel: options.channel };
+    rank: options.rank
+  }
+  const body: Record<string, unknown> = { channel: options.channel }
 
   if (options.source === 'feed') {
-    body.attribution_details = Buffer.from(JSON.stringify(attributions)).toString('base64');
-    body.attribution_source = options.source ?? 'feed';
+    body.attribution_details = Buffer.from(JSON.stringify(attributions)).toString('base64')
+    body.attribution_source = options.source ?? 'feed'
   }
 
-  return baseJoinChannel(profile, { body });
-};
+  return await baseJoinChannel(profile, { body })
+}
 
-export default joinChannel;
+export default joinChannel

@@ -1,2 +1,2 @@
-export * from './channel.controller';
-export * from './welcomeChannel.controller';
+export * from './channel.controller'
+export * from './welcomeChannel.controller'

@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 const countCharacters = (str: string): number => {
-  return str.length;
-};
+  return str.length
+}
 
-export default countCharacters;
+export default countCharacters

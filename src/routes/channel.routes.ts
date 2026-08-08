@@ -4,13 +4,13 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response } from 'express';
-import { timerService } from '../services/timer.service';
+import { Router, Request, Response } from 'express'
+import { timerService } from '../services/timer.service'
 
 /**
  * Timer routes for pomodoro functionality
  */
-const router = Router();
+const router = Router()
 
 /**
  * @openapi
@@ -42,13 +42,13 @@ const router = Router();
  *         description: Missing required parameters
  */
 router.post('/start-timer', (req: Request, res: Response) => {
-  const { channel, emoji } = req.body as { channel: string; emoji: string };
+  const { channel, emoji } = req.body as { channel: string, emoji: string }
   if (!channel || !emoji) {
-    res.status(400).json({ error: 'Missing channel or emoji' });
-    return;
+    res.status(400).json({ error: 'Missing channel or emoji' })
+    return
   }
-  timerService.startBaseTimer(channel, emoji);
-  res.sendStatus(200);
-});
+  timerService.startBaseTimer(channel, emoji)
+  res.sendStatus(200)
+})
 
-export default router;
+export default router

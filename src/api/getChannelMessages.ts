@@ -17,7 +17,7 @@ const getChannelMessages = async (profile: Profile, opts?: GetChannelMessagesOpt
   'use strict'
 
   const options: GetChannelMessagesOptions = opts ?? {}
-  
+
   const response = await agent(
     '/get_channel_messages',
     {

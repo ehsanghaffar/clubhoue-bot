@@ -4,37 +4,37 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import HttpStatus from 'http-status-codes';
+import HttpStatus from 'http-status-codes'
 
 interface JoiError {
-  isJoi?: boolean;
+  isJoi?: boolean
   details?: Array<{
-    message: string;
-    path: string[];
-  }>;
+    message: string
+    path: string[]
+  }>
 }
 
 interface BoomError {
-  isBoom?: boolean;
+  isBoom?: boolean
   output?: {
-    statusCode: number;
+    statusCode: number
     payload: {
-      message?: string;
-      error?: string;
-    };
-  };
+      message?: string
+      error?: string
+    }
+  }
 }
 
 interface BuildErrorResult {
-  code: number;
-  message: string;
+  code: number
+  message: string
   details?: Array<{
-    message: string;
-    param: string;
-  }>;
+    message: string
+    param: string
+  }>
 }
 
-function buildError(err: Error & JoiError & BoomError): BuildErrorResult {
+function buildError (err: Error & JoiError & BoomError): BuildErrorResult {
   if (err.isJoi) {
     return {
       code: HttpStatus.BAD_REQUEST,
@@ -42,22 +42,22 @@ function buildError(err: Error & JoiError & BoomError): BuildErrorResult {
       details:
         err.details?.map((detail) => ({
           message: detail.message,
-          param: detail.path.join('.'),
-        })) ?? [],
-    };
+          param: detail.path.join('.')
+        })) ?? []
+    }
   }
 
-  if (err.isBoom && err.output) {
+  if (err.isBoom && (err.output != null)) {
     return {
       code: err.output.statusCode,
-      message: err.output.payload.message ?? err.output.payload.error ?? 'Unknown error',
-    };
+      message: err.output.payload.message ?? err.output.payload.error ?? 'Unknown error'
+    }
   }
 
   return {
     code: HttpStatus.INTERNAL_SERVER_ERROR,
-    message: HttpStatus.getStatusText(HttpStatus.INTERNAL_SERVER_ERROR),
-  };
+    message: HttpStatus.getStatusText(HttpStatus.INTERNAL_SERVER_ERROR)
+  }
 }
 
-export default buildError;
+export default buildError

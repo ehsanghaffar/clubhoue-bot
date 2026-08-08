@@ -4,15 +4,15 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response, NextFunction } from 'express';
-import * as channelController from '../controllers/channel.controller';
-import * as welcomeController from '../controllers/welcomeChannel.controller';
-import { createInternalError } from '../utils/errors';
+import { Router, Request, Response, NextFunction } from 'express'
+import * as channelController from '../controllers/channel.controller'
+import * as welcomeController from '../controllers/welcomeChannel.controller'
+import { createInternalError } from '../utils/errors'
 
 /**
  * Channel management routes
  */
-const router = Router();
+const router = Router()
 
 /**
  * @openapi
@@ -42,7 +42,7 @@ const router = Router();
  *       500:
  *         description: Error joining channel
  */
-router.post('/join_room', channelController.joinRoom);
+router.post('/join_room', channelController.joinRoom)
 
 /**
  * @openapi
@@ -66,7 +66,7 @@ router.post('/join_room', channelController.joinRoom);
  *       200:
  *         description: Invitation accepted
  */
-router.post('/accept_invite', channelController.acceptInvite);
+router.post('/accept_invite', channelController.acceptInvite)
 
 /**
  * @openapi
@@ -90,7 +90,7 @@ router.post('/accept_invite', channelController.acceptInvite);
  *       200:
  *         description: List of users in the room
  */
-router.post('/get_room_users', welcomeController.getChannelInfo);
+router.post('/get_room_users', welcomeController.getChannelInfo)
 
 /**
  * @openapi
@@ -114,7 +114,7 @@ router.post('/get_room_users', welcomeController.getChannelInfo);
  *       200:
  *         description: Successfully left channel
  */
-router.post('/leave', channelController.leaveRoom);
+router.post('/leave', channelController.leaveRoom)
 
 /**
  * @openapi
@@ -129,11 +129,11 @@ router.post('/leave', channelController.leaveRoom);
  */
 router.post('/channels', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await channelController.getFeed(req, res);
+    await channelController.getFeed(req, res)
   } catch (error) {
-    next(createInternalError('Failed to get channels feed'));
+    next(createInternalError('Failed to get channels feed'))
   }
-});
+})
 
 /**
  * @openapi
@@ -146,7 +146,7 @@ router.post('/channels', async (req: Request, res: Response, next: NextFunction)
  *       200:
  *         description: Current channel info
  */
-router.post('/current-channel', channelController.getCurrentChannel);
+router.post('/current-channel', channelController.getCurrentChannel)
 
 /**
  * @openapi
@@ -173,7 +173,7 @@ router.post('/current-channel', channelController.getCurrentChannel);
  *       200:
  *         description: Room messages
  */
-router.post('/room-msgs', channelController.getChannelMsgs);
+router.post('/room-msgs', channelController.getChannelMsgs)
 
 /**
  * @openapi
@@ -200,7 +200,7 @@ router.post('/room-msgs', channelController.getChannelMsgs);
  *       200:
  *         description: Message sent
  */
-router.post('/send-room-msg', channelController.sendMessageToRoom);
+router.post('/send-room-msg', channelController.sendMessageToRoom)
 
 /**
  * @openapi
@@ -213,6 +213,6 @@ router.post('/send-room-msg', channelController.sendMessageToRoom);
  *       200:
  *         description: User profile information
  */
-router.post('/me', channelController.myProfile);
+router.post('/me', channelController.myProfile)
 
-export default router;
+export default router

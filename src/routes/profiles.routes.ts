@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   addProfile,
   changeProfile,
@@ -12,13 +12,13 @@ import {
   acceptInvite,
   getUser,
   getAllUsers,
-  getToken,
-} from '../controllers/profile.controller';
+  getToken
+} from '../controllers/profile.controller'
 
 /**
  * Profile management routes
  */
-const router = Router();
+const router = Router()
 
 /**
  * @openapi
@@ -50,7 +50,7 @@ const router = Router();
  *       400:
  *         description: Validation error
  */
-router.post('/add_profile', addProfile);
+router.post('/add_profile', addProfile)
 
 /**
  * @openapi
@@ -74,7 +74,7 @@ router.post('/add_profile', addProfile);
  *       404:
  *         description: Profile not found
  */
-router.post('/change-profile', changeProfile);
+router.post('/change-profile', changeProfile)
 
 /**
  * @openapi
@@ -96,7 +96,7 @@ router.post('/change-profile', changeProfile);
  *       200:
  *         description: Search results
  */
-router.post('/search_users', searchUsers);
+router.post('/search_users', searchUsers)
 
 /**
  * @openapi
@@ -123,7 +123,7 @@ router.post('/search_users', searchUsers);
  *       200:
  *         description: Invite accepted
  */
-router.post('/accept_invite', acceptInvite);
+router.post('/accept_invite', acceptInvite)
 
 /**
  * @openapi
@@ -147,7 +147,7 @@ router.post('/accept_invite', acceptInvite);
  *       200:
  *         description: User information
  */
-router.post('/get_user', getUser);
+router.post('/get_user', getUser)
 
 /**
  * @openapi
@@ -160,7 +160,7 @@ router.post('/get_user', getUser);
  *       200:
  *         description: List of all users
  */
-router.get('/all_users', getAllUsers);
+router.get('/all_users', getAllUsers)
 
 /**
  * @openapi
@@ -175,6 +175,6 @@ router.get('/all_users', getAllUsers);
  *       404:
  *         description: Profile not found
  */
-router.get('/get_token', getToken);
+router.get('/get_token', getToken)
 
-export default router;
+export default router

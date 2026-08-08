@@ -4,15 +4,15 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response } from 'express';
-import { clubService } from '../services/club-api.service';
-import { constants } from '../config';
-import logger from '../utils/logger';
+import { Router, Request, Response } from 'express'
+import { clubService } from '../services/club-api.service'
+import { constants } from '../config'
+import logger from '../utils/logger'
 
 /**
  * User search routes
  */
-const router = Router();
+const router = Router()
 
 /**
  * @openapi
@@ -38,14 +38,14 @@ const router = Router();
  *         description: Server error
  */
 router.post('/search_users', async (req: Request, res: Response) => {
-  const query = req.body;
+  const query = req.body
   try {
-    const users = await clubService.searchUsers(query);
-    res.send(users);
+    const users = await clubService.searchUsers(query)
+    res.send(users)
   } catch (error) {
-    logger.error('Error searching users:', { error });
-    res.status(constants.HTTP_STATUS.INTERNAL_SERVER_ERROR).send('Error...');
+    logger.error('Error searching users:', { error })
+    res.status(constants.HTTP_STATUS.INTERNAL_SERVER_ERROR).send('Error...')
   }
-});
+})
 
-export default router;
+export default router

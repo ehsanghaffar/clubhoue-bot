@@ -16,17 +16,17 @@ interface GetStaticOptions {
   method?: string
 }
 
-const getStatic = (profile: Profile, url?: string, options?: GetStaticOptions): Promise<Response> => {
+const getStatic = async (profile: Profile, url?: string, options?: GetStaticOptions): Promise<Response> => {
   'use strict'
 
   let finalUrl = url ?? ''
   const headers: Record<string, string> = options?.headers ?? {}
 
   headers['User-Agent'] = profile.userAgentStatic ?? 'Clubhouse/297 CFNetwork/1220.1 Darwin/20.3.0'
-  headers['Accept'] = 'application/json'
+  headers.Accept = 'application/json'
   headers['Accept-Encoding'] = profile.acceptEncodings ?? 'gzip, deflate, br'
   headers['Accept-Language'] = profile.acceptLanguages ?? 'ko-KR;q=1'
-  headers['Connection'] = 'keep-alive'
+  headers.Connection = 'keep-alive'
 
   let body: BodyInit | undefined
   let method = options?.method
@@ -46,7 +46,7 @@ const getStatic = (profile: Profile, url?: string, options?: GetStaticOptions): 
     finalUrl += '?' + queryString
   }
 
-  return fetch(finalUrl, { headers, body, method })
+  return await fetch(finalUrl, { headers, body, method })
 }
 
 export default getStatic

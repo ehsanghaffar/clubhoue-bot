@@ -206,6 +206,8 @@ All routes are mounted under `/api`. Interactive docs are available at **`/api-d
 | | `POST /api/channels/room-msgs` | Get room messages |
 | | `POST /api/channels/send-room-msg` | Send a message to the room |
 | | `POST /api/channels/me` | Get the current user profile |
+| **Notifications** | `POST /api/notifications` | Get notifications (`size`, `page`) |
+| | `POST /api/notifications/actionable` | Get actionable notifications |
 | **Chatbot** | `POST /api/chatbot/start` | Start AI replies in a channel |
 | | `POST /api/chatbot/stop` | Stop the chatbot loop |
 | **Timer** | `POST /api/channel/start-timer` | Start a pomodoro cycle for a channel |

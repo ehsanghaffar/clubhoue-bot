@@ -9,10 +9,12 @@ import type { Profile } from '../types/config.js'
 import { clubService, ClubApiService } from './club-api.service.js'
 import logger from '../utils/logger.js'
 
-let fetchChannelMessages: (channelId: string, order?: number) => Promise<unknown[] | null> = async () => null
-
-export function setFetchChannelMessages (fn: typeof fetchChannelMessages): void {
-  fetchChannelMessages = fn
+export interface ChannelMessage {
+  message_id: string
+  message?: string
+  user_profile?: {
+    user_id: number | string
+  }
 }
 
 export class ChannelService {
@@ -20,6 +22,26 @@ export class ChannelService {
 
   constructor (clubServiceInstance?: ClubApiService) {
     this.clubService = clubServiceInstance ?? clubService
+  }
+
+  /**
+   * Fetches channel messages through the configured Club API service.
+   *
+   * Previously this pipeline relied on an externally injected `fetchChannelMessages`
+   * callback that was never wired up, so room messages and invite automation always
+   * resolved to `null`. Now it always uses the real, typed API implementation.
+   */
+  private async fetchChannelMessages (channelId: string, order = 0): Promise<ChannelMessage[]> {
+    try {
+      const result = (await this.clubService.getChannelMessages({
+        channel: channelId,
+        order
+      })) as { messages?: ChannelMessage[] }
+      return result.messages ?? []
+    } catch (error) {
+      logger.error('Error fetching channel messages:', { error })
+      return []
+    }
   }
 
   async joinChannelWithInviteHandling (channelId: string): Promise<JoinChannelResponse> {
@@ -41,10 +63,8 @@ export class ChannelService {
 
   async handleInviteRequests (channelId: string): Promise<void> {
     try {
-      const messages = await fetchChannelMessages(channelId) as Array<{
-        user_profile?: { user_id: number | string }
-      }>
-      if (messages) {
+      const messages = await this.fetchChannelMessages(channelId)
+      if (messages.length > 0) {
         logger.info('Processing invites for channel:', { channelId })
         for (const invite of messages) {
           if (invite.user_profile?.user_id) {
@@ -71,13 +91,8 @@ export class ChannelService {
     }
   }
 
-  async getChannelMessages (options: { channel: string, order?: number }): Promise<unknown> {
-    try {
-      return await fetchChannelMessages(options.channel, options.order)
-    } catch (error) {
-      logger.error('Error getting channel messages:', { error })
-      throw error
-    }
+  async getChannelMessages (options: { channel: string, order?: number }): Promise<ChannelMessage[]> {
+    return await this.fetchChannelMessages(options.channel, options.order)
   }
 
   async sendChannelMessage (options: { channel: string, message: string }): Promise<SendMessageResponse> {

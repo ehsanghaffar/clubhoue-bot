@@ -4,9 +4,11 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { clubService } from '../services/club-api.service.js'
-import { constants } from '../config/index.js'
+import { validateBody } from '../middlewares/validate.js'
+import { searchUsersSchema } from '../validation/schemas.js'
+import { createInternalError } from '../utils/errors.js'
 import logger from '../utils/logger.js'
 
 /**
@@ -37,14 +39,13 @@ const router: Router = Router()
  *       500:
  *         description: Server error
  */
-router.post('/search_users', async (req: Request, res: Response) => {
-  const query = req.body
+router.post('/search_users', validateBody(searchUsersSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await clubService.searchUsers(query)
+    const users = await clubService.searchUsers(req.body)
     res.send(users)
   } catch (error) {
     logger.error('Error searching users:', { error })
-    res.status(constants.HTTP_STATUS.INTERNAL_SERVER_ERROR).send('Error...')
+    next(createInternalError('Failed to search users'))
   }
 })
 

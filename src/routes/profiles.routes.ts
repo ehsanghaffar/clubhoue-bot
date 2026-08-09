@@ -14,6 +14,13 @@ import {
   getAllUsers,
   getToken
 } from '../controllers/profile.controller.js'
+import { validateBody } from '../middlewares/validate.js'
+import {
+  changeProfileSchema,
+  searchUsersSchema,
+  acceptInviteSchema,
+  getUserSchema
+} from '../validation/schemas.js'
 
 /**
  * Profile management routes
@@ -74,7 +81,7 @@ router.post('/add_profile', addProfile)
  *       404:
  *         description: Profile not found
  */
-router.post('/change-profile', changeProfile)
+router.post('/change-profile', validateBody(changeProfileSchema), changeProfile)
 
 /**
  * @openapi
@@ -96,7 +103,7 @@ router.post('/change-profile', changeProfile)
  *       200:
  *         description: Search results
  */
-router.post('/search_users', searchUsers)
+router.post('/search_users', validateBody(searchUsersSchema), searchUsers)
 
 /**
  * @openapi
@@ -123,7 +130,7 @@ router.post('/search_users', searchUsers)
  *       200:
  *         description: Invite accepted
  */
-router.post('/accept_invite', acceptInvite)
+router.post('/accept_invite', validateBody(acceptInviteSchema), acceptInvite)
 
 /**
  * @openapi
@@ -147,7 +154,7 @@ router.post('/accept_invite', acceptInvite)
  *       200:
  *         description: User information
  */
-router.post('/get_user', getUser)
+router.post('/get_user', validateBody(getUserSchema), getUser)
 
 /**
  * @openapi

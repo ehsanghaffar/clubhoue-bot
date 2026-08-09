@@ -7,6 +7,16 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import * as channelController from '../controllers/channel.controller.js'
 import * as welcomeController from '../controllers/welcomeChannel.controller.js'
+import { validateBody } from '../middlewares/validate.js'
+import {
+  joinRoomSchema,
+  acceptSpeakerInviteSchema,
+  getRoomUsersSchema,
+  leaveRoomSchema,
+  getChannelMessagesSchema,
+  sendChannelMessageSchema,
+  getCurrentChannelSchema
+} from '../validation/schemas.js'
 import { createInternalError } from '../utils/errors.js'
 
 /**
@@ -42,7 +52,7 @@ const router: Router = Router()
  *       500:
  *         description: Error joining channel
  */
-router.post('/join_room', channelController.joinRoom)
+router.post('/join_room', validateBody(joinRoomSchema), channelController.joinRoom)
 
 /**
  * @openapi
@@ -66,7 +76,7 @@ router.post('/join_room', channelController.joinRoom)
  *       200:
  *         description: Invitation accepted
  */
-router.post('/accept_invite', channelController.acceptInvite)
+router.post('/accept_invite', validateBody(acceptSpeakerInviteSchema), channelController.acceptInvite)
 
 /**
  * @openapi
@@ -83,14 +93,17 @@ router.post('/accept_invite', channelController.acceptInvite)
  *             type: object
  *             required:
  *               - channel
+ *               - username
  *             properties:
  *               channel:
+ *                 type: string
+ *               username:
  *                 type: string
  *     responses:
  *       200:
  *         description: List of users in the room
  */
-router.post('/get_room_users', welcomeController.getChannelInfo)
+router.post('/get_room_users', validateBody(getRoomUsersSchema), welcomeController.getChannelInfo)
 
 /**
  * @openapi
@@ -114,7 +127,7 @@ router.post('/get_room_users', welcomeController.getChannelInfo)
  *       200:
  *         description: Successfully left channel
  */
-router.post('/leave', channelController.leaveRoom)
+router.post('/leave', validateBody(leaveRoomSchema), channelController.leaveRoom)
 
 /**
  * @openapi
@@ -129,7 +142,7 @@ router.post('/leave', channelController.leaveRoom)
  */
 router.post('/channels', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await channelController.getFeed(req, res)
+    await channelController.getFeed(req, res, next)
   } catch (error) {
     next(createInternalError('Failed to get channels feed'))
   }
@@ -146,7 +159,7 @@ router.post('/channels', async (req: Request, res: Response, next: NextFunction)
  *       200:
  *         description: Current channel info
  */
-router.post('/current-channel', channelController.getCurrentChannel)
+router.post('/current-channel', validateBody(getCurrentChannelSchema), channelController.getCurrentChannel)
 
 /**
  * @openapi
@@ -173,7 +186,7 @@ router.post('/current-channel', channelController.getCurrentChannel)
  *       200:
  *         description: Room messages
  */
-router.post('/room-msgs', channelController.getChannelMsgs)
+router.post('/room-msgs', validateBody(getChannelMessagesSchema), channelController.getChannelMsgs)
 
 /**
  * @openapi
@@ -200,7 +213,7 @@ router.post('/room-msgs', channelController.getChannelMsgs)
  *       200:
  *         description: Message sent
  */
-router.post('/send-room-msg', channelController.sendMessageToRoom)
+router.post('/send-room-msg', validateBody(sendChannelMessageSchema), channelController.sendMessageToRoom)
 
 /**
  * @openapi

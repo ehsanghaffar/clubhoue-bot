@@ -6,6 +6,8 @@
  */
 import { Router, Request, Response } from 'express'
 import { timerService } from '../services/timer.service.js'
+import { validateBody } from '../middlewares/validate.js'
+import { startTimerSchema } from '../validation/schemas.js'
 
 /**
  * Timer routes for pomodoro functionality
@@ -41,12 +43,8 @@ const router: Router = Router()
  *       400:
  *         description: Missing required parameters
  */
-router.post('/start-timer', (req: Request, res: Response) => {
+router.post('/start-timer', validateBody(startTimerSchema), (req: Request, res: Response) => {
   const { channel, emoji } = req.body as { channel: string, emoji: string }
-  if (!channel || !emoji) {
-    res.status(400).json({ error: 'Missing channel or emoji' })
-    return
-  }
   timerService.startBaseTimer(channel, emoji)
   res.sendStatus(200)
 })

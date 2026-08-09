@@ -6,6 +6,8 @@
  */
 import { Router } from 'express'
 import * as notificationsController from '../controllers/notifications.controller.js'
+import { validateBody } from '../middlewares/validate.js'
+import { getNotificationsSchema } from '../validation/schemas.js'
 
 /**
  * Notifications routes
@@ -40,7 +42,7 @@ const router: Router = Router()
  *       500:
  *         description: Server error
  */
-router.post('/', notificationsController.getNotifications)
+router.post('/', validateBody(getNotificationsSchema), notificationsController.getNotifications)
 
 /**
  * @openapi

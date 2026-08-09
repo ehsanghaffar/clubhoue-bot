@@ -4,11 +4,12 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Request, Response } from 'express'
+import { Request, Response, NextFunction } from 'express'
 import { clubService } from '../services/club-api.service.js'
 import { channelService } from '../services/channel.service.js'
 import ValidToken from '../models/token.js'
 import { startPingLoop, stopPingLoop } from '../utils/pingManager.js'
+import { createInternalError, createValidationError } from '../utils/errors.js'
 import logger from '../utils/logger.js'
 
 interface JoinRoomBody {
@@ -45,19 +46,24 @@ export const findClientToken = async (
   }
 }
 
-export const getFeed = async (req: Request, res: Response): Promise<void> => {
+export const getFeed = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const feed = await channelService.getChannelFeed()
     res.send(feed)
   } catch (error) {
     logger.error('Error getting channel feed:', { error })
-    res.status(500).send('Error getting channel feed')
+    next(createInternalError('Failed to get channel feed'))
   }
 }
 
 export const joinRoom = async (
   req: Request<unknown, unknown, JoinRoomBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel } = req.body
@@ -70,13 +76,14 @@ export const joinRoom = async (
     res.send(result)
   } catch (error) {
     logger.error('Error joining room:', { error })
-    res.status(500).send('Error joining room')
+    next(createInternalError('Failed to join room'))
   }
 }
 
 export const leaveRoom = async (
   req: Request<unknown, unknown, LeaveRoomBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel } = req.body
@@ -85,13 +92,14 @@ export const leaveRoom = async (
     res.send(result)
   } catch (error) {
     logger.error('Error leaving room:', { error })
-    res.status(500).send('Error leaving room')
+    next(createInternalError('Failed to leave room'))
   }
 }
 
 export const acceptInvite = async (
   req: Request<unknown, unknown, LeaveRoomBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel } = req.body
@@ -99,13 +107,14 @@ export const acceptInvite = async (
     res.send(result)
   } catch (error) {
     logger.error('Error accepting invite:', { error })
-    res.status(500).send(error)
+    next(createInternalError('Failed to accept invite'))
   }
 }
 
 export const getChannelMsgs = async (
   req: Request<unknown, unknown, GetChannelMsgsBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel, order } = req.body
@@ -113,16 +122,14 @@ export const getChannelMsgs = async (
     res.send(result)
   } catch (error) {
     logger.error('Error getting channel messages:', { error })
-    res.status(500).json({
-      error: true,
-      message: `Error: ${error}`
-    })
+    next(createInternalError('Failed to get channel messages'))
   }
 }
 
 export const sendMessageToRoom = async (
   req: Request<unknown, unknown, SendMessageBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel, message } = req.body
@@ -133,73 +140,58 @@ export const sendMessageToRoom = async (
     res.send(result)
   } catch (error) {
     logger.error('Error sending message to room:', { error })
-    res.status(500).json({
-      error: true,
-      message: `Error: ${error}`
-    })
+    next(createInternalError('Failed to send message'))
   }
 }
 
 export const myProfile = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const profile = await channelService.getUserProfile()
     res.send(profile)
   } catch (error) {
     logger.error('Error getting user profile:', { error })
-    res.status(500).json({
-      error: true,
-      message: `Error: ${error}`
-    })
+    next(createInternalError('Failed to get user profile'))
   }
 }
 
 export const getCurrentChannel = async (
   req: Request<unknown, unknown, { channel: string }>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel } = req.body
     if (!channel) {
-      res.status(400).json({
-        error: true,
-        message: 'Missing required field: channel'
-      })
+      next(createValidationError('Missing required field: channel'))
       return
     }
     const current = await clubService.getChannel({ channel })
     res.send(current)
   } catch (error) {
     logger.error('Error getting current channel:', { error })
-    res.status(500).json({
-      error: true,
-      message: `Error: ${error}`
-    })
+    next(createInternalError('Failed to get current channel'))
   }
 }
 
 export const emojiReaction = async (
   req: Request<unknown, unknown, EmojiReactionBody>,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { channel, emoji } = req.body
     if (!channel || !emoji) {
-      res.status(400).json({
-        error: true,
-        message: 'Missing required fields: channel, emoji'
-      })
+      next(createValidationError('Missing required fields: channel, emoji'))
       return
     }
     const reaction = await clubService.emojiReaction({ channel, emoji })
     res.send(reaction)
   } catch (error) {
     logger.error('Error sending emoji reaction:', { error })
-    res.status(500).json({
-      error: true,
-      message: `Error: ${error}`
-    })
+    next(createInternalError('Failed to send emoji reaction'))
   }
 }

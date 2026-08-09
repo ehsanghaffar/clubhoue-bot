@@ -10,31 +10,15 @@ import type { Profile } from '../types/config.js'
 
 interface GetActionableNotificationsOptions {
   userId?: number
-  size?: number
-  page?: number
 }
 
-const getActionableNotifications = async (profile: Profile, opts?: number | GetActionableNotificationsOptions): Promise<unknown> => {
+const getActionableNotifications = async (
+  profile: Profile,
+  _opts?: number | GetActionableNotificationsOptions
+): Promise<unknown> => {
   'use strict'
 
-  let options: GetActionableNotificationsOptions
-
-  if (typeof opts === 'number') {
-    options = { userId: opts }
-  } else {
-    options = opts ?? {}
-  }
-
-  const response = await agent(
-    '/follow',
-    {
-      query: {
-        page_size: options.size ?? 20,
-        page: options.page ?? 1
-      }
-    },
-    profile
-  )
+  const response = await agent('/get_actionable_notifications', {}, profile)
   const data = await response.json()
 
   return data

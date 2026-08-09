@@ -26,7 +26,7 @@ const getNotifications = async (profile: Profile, opts?: number | GetNotificatio
   }
 
   const response = await agent(
-    '/follow',
+    '/get_notifications',
     {
       query: {
         page_size: options.size ?? 20,

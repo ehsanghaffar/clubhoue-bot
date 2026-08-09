@@ -20,8 +20,6 @@ function normalizeMongoURL (url: string | undefined): string {
 }
 
 interface ConnectionParams {
-  useNewUrlParser: boolean
-  useUnifiedTopology: boolean
   serverSelectionTimeoutMS: number
   family: number
 }
@@ -32,8 +30,6 @@ const connectDB = async (): Promise<typeof mongoose> => {
     logger.info('Connecting to MongoDB:', { url: mongoURL.replace(/\/\/.*@/, '//***@') })
 
     const connectionParams: ConnectionParams = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
       family: 4
     }

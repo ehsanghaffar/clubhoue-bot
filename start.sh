@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$NODE_ENV" == "production" ] ; then
-  pnpm run start
+  pnpm start
 else
-  pnpm run dev
+  pnpm dev
 fi

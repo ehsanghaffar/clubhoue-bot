@@ -15,6 +15,8 @@ import logger from './utils/logger.js'
 
 import db from './config/db/db.js'
 import { initializeService } from './services/service-initializer.js'
+import { timerService } from './services/timer.service.js'
+import { errorHandler } from './middlewares/auth.js'
 import routes from './routes/routes.js'
 
 dotenv.config()
@@ -62,8 +64,28 @@ app.get('/swagger.json', (_req: Request, res: Response) => {
 
 app.use('/api', routes)
 
+// Global error handler must be registered after all routes so that errors
+// thrown by controllers/middleware are normalized into the shared AppError shape.
+app.use(errorHandler)
+
+/**
+ * Validates required environment variables up front so the process fails with
+ * a clear, controlled error instead of crashing later at module import time.
+ */
+const validateEnvironment = (): void => {
+  const missing: string[] = []
+  if (!process.env.JWT_PRIVATE_KEY) {
+    missing.push('JWT_PRIVATE_KEY')
+  }
+  if (missing.length > 0) {
+    logger.error('Missing required environment variable(s):', { missing })
+    process.exit(1)
+  }
+}
+
 const bootstrap = async (): Promise<void> => {
   try {
+    validateEnvironment()
     await db()
     initializeService()
 
@@ -83,10 +105,14 @@ const bootstrap = async (): Promise<void> => {
     })
 
     process.on('SIGINT', () => {
+      logger.info('Shutting down (SIGINT)')
+      timerService.stop()
       server.close(() => process.exit(0))
     })
 
     process.on('SIGTERM', () => {
+      logger.info('Shutting down (SIGTERM)')
+      timerService.stop()
       server.close(() => process.exit(0))
     })
 

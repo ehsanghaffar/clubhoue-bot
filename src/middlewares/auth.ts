@@ -10,11 +10,6 @@ import { AppError, ERROR_TYPES } from '../utils/errors.js'
 import logger from '../utils/logger.js'
 import type { AuthenticatedRequest, DecodedToken } from '../types/express.js'
 
-const jwtPrivateKey = process.env.JWT_PRIVATE_KEY
-if (!jwtPrivateKey) {
-  throw new Error('JWT_PRIVATE_KEY environment variable is required')
-}
-
 declare global {
   namespace Express {
     interface Request {
@@ -23,12 +18,25 @@ declare global {
   }
 }
 
+const getJwtPrivateKey = (): string | undefined => process.env.JWT_PRIVATE_KEY
+
 const authMiddleware = (
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
   try {
+    const jwtPrivateKey = getJwtPrivateKey()
+    if (!jwtPrivateKey) {
+      const error = new AppError(
+        ERROR_TYPES.INTERNAL,
+        500,
+        'JWT_PRIVATE_KEY environment variable is not configured.'
+      )
+      next(error)
+      return
+    }
+
     const token = req.header('x-auth-token')
     if (!token) {
       const error = new AppError(
@@ -36,7 +44,8 @@ const authMiddleware = (
         401,
         'Access denied. No token provided.'
       )
-      return next(error)
+      next(error)
+      return
     }
 
     const decoded = jwt.verify(token, jwtPrivateKey) as DecodedToken;
@@ -45,11 +54,13 @@ const authMiddleware = (
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
       const authError = new AppError(ERROR_TYPES.UNAUTHORIZED, 401, 'Invalid token.')
-      return next(authError)
+      next(authError)
+      return
     }
     if (error instanceof jwt.TokenExpiredError) {
       const authError = new AppError(ERROR_TYPES.UNAUTHORIZED, 401, 'Token expired.')
-      return next(authError)
+      next(authError)
+      return
     }
     next(error as Error)
   }
@@ -114,6 +125,10 @@ export const errorHandler = (
     process.env.NODE_ENV === 'production'
       ? 'An unexpected error occurred.'
       : err.message
+
+  if (statusCode >= 500) {
+    logger.error('Unhandled error:', { error: err })
+  }
 
   res.status(statusCode).json({
     error: {

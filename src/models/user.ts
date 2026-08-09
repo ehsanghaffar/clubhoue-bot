@@ -9,11 +9,6 @@ import jwt from 'jsonwebtoken'
 import Joi from 'joi'
 import type { IUserDocument, UserValidationResult } from '../types/models.js'
 
-const jwtPrivateKey = process.env.JWT_PRIVATE_KEY
-if (!jwtPrivateKey) {
-  throw new Error('JWT_PRIVATE_KEY environment variable is required')
-}
-
 interface UserModel extends mongoose.Model<IUserDocument> {
   validateUser: (user: unknown) => UserValidationResult
 }
@@ -37,6 +32,10 @@ const userSchema = new Schema<IUserDocument, UserModel>(
 )
 
 userSchema.methods.generateAuthToken = function (this: IUserDocument): string {
+  const jwtPrivateKey = process.env.JWT_PRIVATE_KEY
+  if (!jwtPrivateKey) {
+    throw new Error('JWT_PRIVATE_KEY environment variable is not configured')
+  }
   const token = jwt.sign({ _id: this._id.toString() }, jwtPrivateKey)
   return token
 }

@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import agent from '../helper/agent.js'
+import type { Profile } from '../types/config.js'
 
 const unfollowUser = async (profile: Profile, userId?: string | number): Promise<unknown> => {
   'use strict'

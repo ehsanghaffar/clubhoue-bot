@@ -5,14 +5,14 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Router, Request, Response, NextFunction } from 'express'
-import * as channelController from '../controllers/channel.controller'
-import * as welcomeController from '../controllers/welcomeChannel.controller'
-import { createInternalError } from '../utils/errors'
+import * as channelController from '../controllers/channel.controller.js'
+import * as welcomeController from '../controllers/welcomeChannel.controller.js'
+import { createInternalError } from '../utils/errors.js'
 
 /**
  * Channel management routes
  */
-const router = Router()
+const router: Router = Router()
 
 /**
  * @openapi

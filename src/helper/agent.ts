@@ -7,7 +7,7 @@
 import fetch from 'cross-fetch'
 import qs from 'qs'
 import { v4 as uuidv4 } from 'uuid'
-import type { AgentCustoms, AgentFunction } from '../types/services'
+import type { AgentCustoms, AgentFunction } from '../types/services.js'
 
 const agent: AgentFunction = async (
   url: string,

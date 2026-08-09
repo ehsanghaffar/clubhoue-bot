@@ -7,7 +7,7 @@
 
 import fetch from 'cross-fetch'
 import qs from 'qs'
-import type { Profile } from '../types/config'
+import type { Profile } from '../types/config.js'
 
 interface GetStaticOptions {
   headers?: Record<string, string>

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { ClubApiService } from '../services/club-api.service'
+import type { ClubApiService } from '../services/club-api.service.js'
 
 export interface ChannelServiceOptions {
   clubService: ClubApiService

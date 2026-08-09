@@ -7,7 +7,7 @@
 import mongoose, { Schema } from 'mongoose'
 import jwt from 'jsonwebtoken'
 import Joi from 'joi'
-import type { IUserDocument, UserValidationResult } from '../types/models'
+import type { IUserDocument, UserValidationResult } from '../types/models.js'
 
 const jwtPrivateKey = process.env.JWT_PRIVATE_KEY
 if (!jwtPrivateKey) {

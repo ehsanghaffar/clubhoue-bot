@@ -9,10 +9,10 @@
  * Consolidates common patterns across 55+ API files and adds consistent error handling
  */
 
-import type { Profile } from '../types/config'
-import type { AgentFunction } from '../types/services'
-import agent from '../helper/agent'
-import logger from './logger'
+import type { Profile } from '../types/config.js'
+import type { AgentFunction } from '../types/services.js'
+import agent from '../helper/agent.js'
+import logger from './logger.js'
 
 export interface ApiEndpointOptions {
   body?: Record<string, unknown>

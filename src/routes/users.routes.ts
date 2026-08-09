@@ -5,14 +5,14 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Router, Request, Response } from 'express'
-import { clubService } from '../services/club-api.service'
-import { constants } from '../config'
-import logger from '../utils/logger'
+import { clubService } from '../services/club-api.service.js'
+import { constants } from '../config/index.js'
+import logger from '../utils/logger.js'
 
 /**
  * User search routes
  */
-const router = Router()
+const router: Router = Router()
 
 /**
  * @openapi

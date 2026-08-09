@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { clubService } from './club-api.service'
-import { constants } from '../config'
-import logger from '../utils/logger'
+import { clubService } from './club-api.service.js'
+import { constants } from '../config/index.js'
+import logger from '../utils/logger.js'
 
 type TimerCallback = (channel: string, emoji: string) => Promise<void>
 

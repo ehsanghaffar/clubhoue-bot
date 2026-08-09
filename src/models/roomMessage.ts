@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import mongoose, { Schema } from 'mongoose'
-import type { IRoomMessageDocument } from '../types/models'
+import type { IRoomMessageDocument } from '../types/models.js'
 
 type RoomMessageModel = mongoose.Model<IRoomMessageDocument>
 

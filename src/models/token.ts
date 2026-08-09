@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import mongoose, { Schema } from 'mongoose'
-import type { IValidTokenDocument } from '../types/models'
+import type { IValidTokenDocument } from '../types/models.js'
 
 type ValidTokenModel = mongoose.Model<IValidTokenDocument>
 

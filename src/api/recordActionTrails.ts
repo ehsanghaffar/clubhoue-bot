@@ -7,8 +7,8 @@
 
 import { v4 as uuidv4 } from 'uuid'
 
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import agent from '../helper/agent.js'
+import type { Profile } from '../types/config.js'
 
 interface RecordActionTrailsOptions {
   type?: string

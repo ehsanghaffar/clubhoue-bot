@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { clubService } from '../services/club-api.service'
-import logger from './logger'
+import { clubService } from '../services/club-api.service.js'
+import logger from './logger.js'
 
 interface ChannelMessage {
   message_id: string

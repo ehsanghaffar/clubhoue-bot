@@ -5,11 +5,11 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Router, Request, Response } from 'express'
-import { clubService } from '../services/club-api.service'
-import openai from '../services/openai.service'
-import { getNewMessages as getNewMessagesFromCache, markMessagesSeen } from '../utils/messageCache'
-import { constants } from '../config'
-import logger from '../utils/logger'
+import { clubService } from '../services/club-api.service.js'
+import openai from '../services/openai.service.js'
+import { getNewMessages as getNewMessagesFromCache, markMessagesSeen } from '../utils/messageCache.js'
+import { constants } from '../config/index.js'
+import logger from '../utils/logger.js'
 
 interface ChannelMessage {
   message_id: string
@@ -32,7 +32,7 @@ interface OpenAIResponse {
   message_id: string
 }
 
-const router = Router()
+const router: Router = Router()
 
 const fetchChannelMessages = async (channel: string): Promise<MappedMessage[]> => {
   try {
@@ -74,7 +74,7 @@ const sendToOpenAI = async (
 ): Promise<OpenAIResponse | null> => {
   const { message, user_name, message_id } = prompt
   try {
-    const result = await openai.createChatCompletion({
+    const result = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
@@ -89,8 +89,8 @@ const sendToOpenAI = async (
       max_tokens: 150,
       temperature: 0.7
     })
-    if (result && result.data.choices && result.data.choices[0]) {
-      const content = result.data.choices[0].message?.content ?? ''
+    if (result && result.choices && result.choices[0]) {
+      const content = result.choices[0].message?.content ?? ''
       const rewriteMessage = content.substring(
         0,
         constants.MESSAGE_LIMITS.MAX_RESPONSE_LENGTH

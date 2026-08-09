@@ -6,9 +6,9 @@
  */
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import { AppError, ERROR_TYPES } from '../utils/errors'
-import logger from '../utils/logger'
-import type { AuthenticatedRequest, DecodedToken } from '../types/express'
+import { AppError, ERROR_TYPES } from '../utils/errors.js'
+import logger from '../utils/logger.js'
+import type { AuthenticatedRequest, DecodedToken } from '../types/express.js'
 
 const jwtPrivateKey = process.env.JWT_PRIVATE_KEY
 if (!jwtPrivateKey) {

@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import type { Profile } from '../types/config'
-import { createApiEndpoint } from '../utils/api-factory'
+import type { Profile } from '../types/config.js'
+import { createApiEndpoint } from '../utils/api-factory.js'
 
 interface JoinChannelOptions {
   channel?: string

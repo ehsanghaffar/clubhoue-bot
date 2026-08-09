@@ -6,10 +6,11 @@ module.exports = {
     node: true,
   },
   extends: ['standard'],
-  parser: 'babel-eslint',
+  parser: '@babel/eslint-parser',
   parserOptions: {
     ecmaVersion: 2021,
     sourceType: 'module',
+    requireConfigFile: false,
   },
   rules: {},
   overrides: [

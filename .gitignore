@@ -123,3 +123,4 @@ dist
 .DS_Store
 __MACOSX
 mongodb
+package-lock.json

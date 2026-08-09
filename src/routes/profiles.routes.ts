@@ -13,12 +13,12 @@ import {
   getUser,
   getAllUsers,
   getToken
-} from '../controllers/profile.controller'
+} from '../controllers/profile.controller.js'
 
 /**
  * Profile management routes
  */
-const router = Router()
+const router: Router = Router()
 
 /**
  * @openapi

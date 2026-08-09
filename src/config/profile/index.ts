@@ -1,1 +1,1 @@
-export { lastVersion } from './lastVersion'
+export { lastVersion } from './lastVersion.js'

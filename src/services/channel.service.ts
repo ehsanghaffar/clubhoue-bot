@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../types/services'
-import type { Profile } from '../types/config'
-import { clubService, ClubApiService } from './club-api.service'
-import logger from '../utils/logger'
+import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../types/services.js'
+import type { Profile } from '../types/config.js'
+import { clubService, ClubApiService } from './club-api.service.js'
+import logger from '../utils/logger.js'
 
 let fetchChannelMessages: (channelId: string, order?: number) => Promise<unknown[] | null> = async () => null
 

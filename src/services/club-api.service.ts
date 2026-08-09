@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { Profile } from '../types/config'
+import type { Profile } from '../types/config.js'
 import type {
   AgentFunction,
   JoinChannelOptions,
@@ -21,8 +21,8 @@ import type {
   LeaveChannelResponse,
   SendMessageResponse,
   UserResponse
-} from '../types/services'
-import logger from '../utils/logger'
+} from '../types/services.js'
+import logger from '../utils/logger.js'
 
 export class ClubApiService {
   private profile: Profile | null = null

@@ -8,11 +8,11 @@ import { Request, Response, NextFunction } from 'express'
 import fs from 'fs'
 import path from 'path'
 import Joi from 'joi'
-import ValidToken from '../models/token'
-import { constants } from '../config'
-import { createValidationError, createInternalError } from '../utils/errors'
-import { clubService } from '../services/club-api.service'
-import logger from '../utils/logger'
+import ValidToken from '../models/token.js'
+import { constants } from '../config/index.js'
+import { createValidationError, createInternalError } from '../utils/errors.js'
+import { clubService } from '../services/club-api.service.js'
+import logger from '../utils/logger.js'
 
 const addProfileSchema = Joi.object({
   // token a4b1cbc6e5e641331cb52d0fe9b2475156a4795c

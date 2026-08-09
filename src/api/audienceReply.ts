@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import agent from '../helper/agent.js'
+import type { Profile } from '../types/config.js'
 
 const audienceReply = async (profile: Profile, channel: string, raiseHands?: boolean, unraiseHands?: boolean): Promise<unknown> => {
   'use strict'

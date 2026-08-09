@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Request, Response } from 'express'
-import { clubService } from '../services/club-api.service'
-import { findClientToken } from './channel.controller'
+import { clubService } from '../services/club-api.service.js'
+import { findClientToken } from './channel.controller.js'
 
 interface GetChannelInfoBody {
   channel: string

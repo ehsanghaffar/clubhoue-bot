@@ -5,8 +5,8 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import agent from '../helper/agent'
-import type { Profile } from '../types/config'
+import agent from '../helper/agent.js'
+import type { Profile } from '../types/config.js'
 
 const getClubs = async (profile: Profile, startableOnly?: boolean): Promise<unknown> => {
   'use strict'

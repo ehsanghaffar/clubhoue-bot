@@ -11,11 +11,11 @@ import dotenv from 'dotenv'
 import bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
 import swaggerJsdoc from 'swagger-jsdoc'
-import logger from './utils/logger'
+import logger from './utils/logger.js'
 
-import db from './config/db/db'
-import { initializeService } from './services/service-initializer'
-import routes from './routes/routes'
+import db from './config/db/db.js'
+import { initializeService } from './services/service-initializer.js'
+import routes from './routes/routes.js'
 
 dotenv.config()
 process.env.DEBUG = '*'

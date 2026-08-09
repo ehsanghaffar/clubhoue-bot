@@ -5,12 +5,12 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Router, Request, Response } from 'express'
-import { timerService } from '../services/timer.service'
+import { timerService } from '../services/timer.service.js'
 
 /**
  * Timer routes for pomodoro functionality
  */
-const router = Router()
+const router: Router = Router()
 
 /**
  * @openapi

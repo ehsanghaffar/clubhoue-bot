@@ -5,9 +5,9 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 
-import type { Profile } from '../types/config'
-import type { ApiEndpointOptions } from '../utils/api-factory'
-import { createApiEndpoint } from '../utils/api-factory'
+import type { Profile } from '../types/config.js'
+import type { ApiEndpointOptions } from '../utils/api-factory.js'
+import { createApiEndpoint } from '../utils/api-factory.js'
 
 const baseGetUser = createApiEndpoint({
   url: '/get_profile',

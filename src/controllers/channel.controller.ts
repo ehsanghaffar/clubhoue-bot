@@ -5,11 +5,11 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Request, Response } from 'express'
-import { clubService } from '../services/club-api.service'
-import { channelService } from '../services/channel.service'
-import ValidToken from '../models/token'
-import { startPingLoop, stopPingLoop } from '../utils/pingManager'
-import logger from '../utils/logger'
+import { clubService } from '../services/club-api.service.js'
+import { channelService } from '../services/channel.service.js'
+import ValidToken from '../models/token.js'
+import { startPingLoop, stopPingLoop } from '../utils/pingManager.js'
+import logger from '../utils/logger.js'
 
 interface JoinRoomBody {
   channel: string

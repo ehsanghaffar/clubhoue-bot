@@ -8,6 +8,8 @@ import { Router, Request, Response } from 'express'
 import { clubService } from '../services/club-api.service.js'
 import openai from '../services/openai.service.js'
 import { getNewMessages as getNewMessagesFromCache, markMessagesSeen } from '../utils/messageCache.js'
+import { validateBody } from '../middlewares/validate.js'
+import { startChatbotSchema } from '../validation/schemas.js'
 import { constants } from '../config/index.js'
 import logger from '../utils/logger.js'
 
@@ -131,6 +133,18 @@ const getNewMessages = async (channelId: string): Promise<MappedMessage[]> => {
 }
 
 let intervalId: NodeJS.Timeout | null = null
+let activeChannel: string | null = null
+
+const stopChatbotLoop = (): void => {
+  if (intervalId != null) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+  if (activeChannel != null) {
+    logger.info('Chatbot loop stopped for channel:', { channel: activeChannel })
+    activeChannel = null
+  }
+}
 
 /**
  * @openapi
@@ -155,13 +169,26 @@ let intervalId: NodeJS.Timeout | null = null
  *       200:
  *         description: Chatbot started
  */
-router.post('/start', async (req: Request, res: Response) => {
+router.post('/start', validateBody(startChatbotSchema), (req: Request, res: Response) => {
   const { channel } = req.body as { channel: string }
-  const loopFunc = async () => {
-    const newMessages = await getNewMessages(channel)
-    await processMessages(newMessages, channel)
+
+  // Restarting must not leak a second polling loop; clear any existing one first.
+  stopChatbotLoop()
+
+  const loopFunc = async (): Promise<void> => {
+    try {
+      const newMessages = await getNewMessages(channel)
+      await processMessages(newMessages, channel)
+    } catch (error) {
+      logger.error('Chatbot loop error:', { error })
+    }
   }
-  intervalId = setInterval(loopFunc, constants.TIME.FIFTEEN_SECONDS)
+
+  intervalId = setInterval(() => {
+    void loopFunc()
+  }, constants.TIME.FIFTEEN_SECONDS)
+  activeChannel = channel
+  logger.info('Chatbot started for channel:', { channel })
   res.send('Ok')
 })
 
@@ -176,11 +203,8 @@ router.post('/start', async (req: Request, res: Response) => {
  *       200:
  *         description: Chatbot stopped
  */
-router.post('/stop', async (_req: Request, res: Response) => {
-  if (intervalId != null) {
-    clearInterval(intervalId)
-    intervalId = null
-  }
+router.post('/stop', (_req: Request, res: Response) => {
+  stopChatbotLoop()
   res.send('Loop stopped')
 })
 

@@ -10,6 +10,7 @@ import usersRoutes from './users.routes.js'
 import channelsRoutes from './channels.routes.js'
 import chatbotRoutes from './chatbot.routes.js'
 import channelRoutes from './channel.routes.js'
+import notificationsRoutes from './notifications.routes.js'
 
 const router: Router = Router()
 
@@ -18,5 +19,6 @@ router.use('/users', usersRoutes)
 router.use('/channels', channelsRoutes)
 router.use('/chatbot', chatbotRoutes)
 router.use('/channel', channelRoutes)
+router.use('/notifications', notificationsRoutes)
 
 export default router

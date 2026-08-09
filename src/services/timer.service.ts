@@ -25,6 +25,7 @@ const DEFAULT_CONFIG: Required<TimerConfig> = {
 export class TimerService {
   private readonly config: Required<TimerConfig>
   private activeTimer: NodeJS.Timeout | null = null
+  private baseTimerInterval: NodeJS.Timeout | null = null
 
   constructor (config: TimerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
@@ -85,8 +86,19 @@ export class TimerService {
    * Checks every minute (rather than once per hour) so a cycle is started
    * reliably regardless of when the server started, and skips starting a new
    * cycle while one is already running to avoid overlapping timers.
+   *
+   * Calling this more than once replaces the previous hourly check loop instead
+   * of leaking additional intervals, so timers never multiply across repeated
+   * calls or across channels.
    */
   public startBaseTimer = (channel: string, emoji: string): void => {
+    if (!channel || !emoji) {
+      logger.warn('TimerService.startBaseTimer called without channel or emoji', { channel, emoji })
+      return
+    }
+
+    this.stop()
+
     const check = (): void => {
       const date = new Date()
       if (date.getMinutes() === 0 && (this.activeTimer == null)) {
@@ -95,8 +107,26 @@ export class TimerService {
     }
 
     check()
-    setInterval(check, constants.TIME.MINUTE)
+    this.baseTimerInterval = setInterval(check, constants.TIME.MINUTE)
+    logger.info('Base timer loop started', { channel, emoji })
   }
+
+  /**
+   * Stops the hourly check loop and any currently running pomodoro/break timer.
+   * Idempotent — safe to call multiple times and on shutdown.
+   */
+  public stop = (): void => {
+    if (this.baseTimerInterval != null) {
+      clearInterval(this.baseTimerInterval)
+      this.baseTimerInterval = null
+    }
+    if (this.activeTimer != null) {
+      clearInterval(this.activeTimer)
+      this.activeTimer = null
+    }
+  }
+
+  public isRunning = (): boolean => this.baseTimerInterval != null || this.activeTimer != null
 }
 
 export const timerService = new TimerService()

@@ -16,6 +16,7 @@ import type {
   AcceptSpeakerInviteOptions,
   InviteToSpeakersOptions,
   ActivePingOptions,
+  GetNotificationsOptions,
   ChannelListResponse,
   JoinChannelResponse,
   LeaveChannelResponse,
@@ -293,6 +294,45 @@ export class ClubApiService {
       const message = error instanceof Error ? error.message : String(error)
       logger.error('Error sending emoji reaction:', { error: message })
       return { success: false }
+    }
+  }
+
+  async getNotifications (opts: GetNotificationsOptions): Promise<Record<string, unknown>> {
+    this.ensureConfigured()
+    try {
+      logger.debug('Getting notifications:', { page: opts.page, pageSize: opts.size })
+      const response = await this.agent!(
+        '/get_notifications',
+        {
+          query: {
+            page_size: opts.size ?? 20,
+            page: opts.page ?? 1
+          }
+        },
+        this.profile!
+      )
+      return await response.json()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error('Error getting notifications:', { error: message })
+      return { notifications: [] }
+    }
+  }
+
+  async getActionableNotifications (): Promise<Record<string, unknown>> {
+    this.ensureConfigured()
+    try {
+      logger.debug('Getting actionable notifications')
+      const response = await this.agent!(
+        '/get_actionable_notifications',
+        {},
+        this.profile!
+      )
+      return await response.json()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error('Error getting actionable notifications:', { error: message })
+      return { notifications: [] }
     }
   }
 }

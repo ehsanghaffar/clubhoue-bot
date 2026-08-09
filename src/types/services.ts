@@ -87,6 +87,12 @@ export interface ActivePingOptions {
   channel: string
 }
 
+export interface GetNotificationsOptions {
+  userId?: number
+  size?: number
+  page?: number
+}
+
 // Response Type Interfaces
 export interface ApiResponse<T = unknown> {
   success: boolean

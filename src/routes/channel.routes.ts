@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response } from 'express'
-import { timerService } from '../services/timer.service.js'
+import { Router } from 'express'
+import { startTimer } from '../controllers/timer.controller.js'
 import { validateBody } from '../middlewares/validate.js'
 import { startTimerSchema } from '../validation/schemas.js'
 
@@ -43,10 +43,6 @@ const router: Router = Router()
  *       400:
  *         description: Missing required parameters
  */
-router.post('/start-timer', validateBody(startTimerSchema), (req: Request, res: Response) => {
-  const { channel, emoji } = req.body as { channel: string, emoji: string }
-  timerService.startBaseTimer(channel, emoji)
-  res.sendStatus(200)
-})
+router.post('/start-timer', validateBody(startTimerSchema), startTimer)
 
 export default router

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Router, Request, Response, NextFunction } from 'express'
+import { Router } from 'express'
 import * as channelController from '../controllers/channel.controller.js'
 import * as welcomeController from '../controllers/welcomeChannel.controller.js'
 import { validateBody } from '../middlewares/validate.js'
@@ -17,7 +17,6 @@ import {
   sendChannelMessageSchema,
   getCurrentChannelSchema
 } from '../validation/schemas.js'
-import { createInternalError } from '../utils/errors.js'
 
 /**
  * Channel management routes
@@ -140,13 +139,7 @@ router.post('/leave', validateBody(leaveRoomSchema), channelController.leaveRoom
  *       200:
  *         description: List of active channels
  */
-router.post('/channels', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await channelController.getFeed(req, res, next)
-  } catch (error) {
-    next(createInternalError('Failed to get channels feed'))
-  }
-})
+router.post('/channels', channelController.getFeed)
 
 /**
  * @openapi

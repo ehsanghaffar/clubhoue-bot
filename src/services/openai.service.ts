@@ -5,12 +5,20 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import OpenAI from 'openai'
-import dotenv from 'dotenv'
 
-dotenv.config()
+let client: OpenAI | null = null
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+/**
+ * Constructs the OpenAI client lazily so the server can boot without
+ * OPENAI_API_KEY set (validated up front in server bootstrap).
+ */
+export const getOpenAIClient = (): OpenAI => {
+  if (client == null) {
+    client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  return client
+}
 
-export default openai
+export default getOpenAIClient

@@ -1,0 +1,94 @@
+# Production deployment: api + worker + mongo + redis (spec §26).
+#
+# Usage:
+#   cp .env.example .env.production   # fill in real secrets, then:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The API and worker run the same image with different entrypoints. MongoDB and
+# Redis are managed dependencies with healthchecks; the app services wait for
+# their dependencies to be healthy before starting.
+
+services:
+    api:
+        build: .
+        image: clubhouse-full-api:prod
+        container_name: clubhouse_api
+        restart: unless-stopped
+        init: true
+        env_file: .env.production
+        environment:
+            - NODE_ENV=production
+            - MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse
+            - REDIS_URL=redis://clubhouse_redis:6379
+        depends_on:
+            mongo:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        ports:
+            - "4000:4000"
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4000/health"]
+            interval: 30s
+            timeout: 3s
+            retries: 3
+            start_period: 10s
+        networks:
+            - clubhouse
+
+    worker:
+        build: .
+        image: clubhouse-full-api:prod
+        container_name: clubhouse_worker
+        restart: unless-stopped
+        init: true
+        env_file: .env.production
+        environment:
+            - NODE_ENV=production
+            - MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse
+            - REDIS_URL=redis://clubhouse_redis:6379
+        depends_on:
+            mongo:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        command: ["node", "dist/worker.js"]
+        networks:
+            - clubhouse
+
+    mongo:
+        image: mongo:6
+        container_name: clubhouse_mongo
+        restart: unless-stopped
+        volumes:
+            - mongo_data:/data/db
+        healthcheck:
+            test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            interval: 30s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        networks:
+            - clubhouse
+
+    redis:
+        image: redis:7-alpine
+        container_name: clubhouse_redis
+        restart: unless-stopped
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 30s
+            timeout: 3s
+            retries: 5
+        networks:
+            - clubhouse
+
+volumes:
+    mongo_data:
+    redis_data:
+
+networks:
+    clubhouse:
+        driver: bridge

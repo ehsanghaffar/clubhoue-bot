@@ -3,6 +3,9 @@ services:
         build: .
         container_name: clubmaster
         restart: always
+        # The image runs as non-root by default; dev bind-mounts need root to
+        # write into the host-mounted source tree.
+        user: "0"
         env_file: .env
         environment:
             - NODE_ENV=development

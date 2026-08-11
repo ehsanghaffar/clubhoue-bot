@@ -99,9 +99,11 @@ You should see `Server running at http://localhost:4000`.
 - Swagger UI → http://localhost:4000/api-docs
 - Raw OpenAPI JSON → http://localhost:4000/swagger.json (requires `x-api-key`)
 
-### Docker (optional)
+### Docker
 
-The repo ships with a multi-stage `Dockerfile`, a `docker-compose.yml` (app + MongoDB), and a `start.sh` launcher:
+The repo ships with a multi-stage `Dockerfile` (build + slim runtime, non-root user, healthcheck), a dev `docker-compose.yml` (app + MongoDB), and a production `docker-compose.prod.yml` (api + worker + mongo + redis).
+
+**Development**
 
 ```bash
 docker compose up -d
@@ -109,6 +111,22 @@ docker compose up -d
 
 - App: http://localhost:4000
 - MongoDB container: `mongodb://club_database:27017/clubhouse` (host port `27020`)
+
+**Production**
+
+```bash
+cp .env.example .env.production   # fill in real secrets, then:
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+The production stack runs four services (spec §26):
+
+- `api` — serves the HTTP API on port `4000`, healthcheck on `/health`
+- `worker` — background worker process (`node dist/worker.js`)
+- `mongo` — MongoDB 6, persistent volume
+- `redis` — Redis 7, persistent volume (reserved for the Redis-backed queue/dedup upgrade path)
+
+API and worker share one image; keys and credentials are injected at runtime via `.env.production` and are never baked into the image.
 
 ---
 

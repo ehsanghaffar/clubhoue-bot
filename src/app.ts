@@ -13,15 +13,34 @@ import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middlewares/error-handler.js'
 import requireApiKey from './middlewares/api-key.js'
 import routes from './routes/routes.js'
+import { createV1Router } from './api/routes/v1.routes.js'
+import { botService, botManager } from './core/bots/index.js'
+import { credentialService } from './core/credentials/credential.service.js'
+import { roomService } from './core/rooms/index.js'
+import { usageService, analyticsService } from './core/usage/index.js'
+import type { BotService } from './core/bots/bot.service.js'
+import type { BotManager } from './core/bots/bot-manager.js'
+import type { CredentialService } from './core/credentials/credential.service.js'
+import type { RoomService } from './core/rooms/room.service.js'
+import type { UsageService } from './core/usage/usage.service.js'
+import type { AnalyticsService } from './core/usage/analytics.service.js'
+import type { TenantService } from './core/tenants/tenant.service.js'
 
 /**
- * Dependencies that can be overridden for tests / alternate runtimes.
- *
- * Later phases extend this option bag with repositories, services, the event
- * bus and the worker queue so the HTTP layer stays decoupled from storage.
- * It is declared as a type alias so it can grow without breaking callers.
+ * Dependencies that can be overridden for tests / alternate runtimes. Every
+ * field is optional and falls back to the production singleton, so callers
+ * can inject in-memory services for integration tests without breaking the
+ * default wiring.
  */
-export type AppOptions = object
+export interface AppOptions {
+  botService?: BotService
+  botManager?: BotManager
+  credentialService?: CredentialService
+  roomService?: RoomService
+  usageService?: UsageService
+  analyticsService?: AnalyticsService
+  tenantService?: TenantService
+}
 
 const buildSwaggerSpec = (): object => {
   const port: number = parseInt(process.env.PORT || '4000', 10)
@@ -56,8 +75,16 @@ const buildSwaggerSpec = (): object => {
  * logic so tests can construct the app with injected dependencies and bind it
  * to an ephemeral port.
  */
-export const createApp = (_options: AppOptions = {}): Express => {
+export const createApp = (options: AppOptions = {}): Express => {
   const app: Express = express()
+
+  const botSvc = options.botService ?? botService
+  const botMgr = options.botManager ?? botManager
+  const credentialSvc = options.credentialService ?? credentialService
+  const roomSvc = options.roomService ?? roomService
+  const usageSvc = options.usageService ?? usageService
+  const analyticsSvc = options.analyticsService ?? analyticsService
+  const tenantSvc = options.tenantService
 
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -97,6 +124,20 @@ export const createApp = (_options: AppOptions = {}): Express => {
   // (including profile/token management) is protected by the API key.
   app.use('/api', apiLimiter)
   app.use('/api', requireApiKey, routes)
+
+  // Public /v1 API. Authentication + tenant context is enforced inside the
+  // router (with injectable services), and rate limiting applies to the whole
+  // surface.
+  app.use('/v1', apiLimiter)
+  app.use('/v1', createV1Router({
+    botService: botSvc,
+    botManager: botMgr,
+    credentialService: credentialSvc,
+    roomService: roomSvc,
+    usageService: usageSvc,
+    analyticsService: analyticsSvc,
+    tenantService: tenantSvc
+  }))
 
   // Global error handler must be registered after all routes so that errors
   // thrown by controllers/middleware are normalized into the shared AppError shape.

@@ -20,6 +20,8 @@ import type { BotCredential, BotCredentialCreateInput } from '../../src/core/cre
 import type { CredentialRepository } from '../../src/core/credentials/credential.repository.js'
 import type { UsageEvent, UsageEventCreateInput, UsageSummary, UsageType } from '../../src/core/usage/usage.types.js'
 import type { UsageRepository } from '../../src/core/usage/usage.repository.js'
+import type { Tenant, TenantCreateInput, TenantUpdateInput } from '../../src/core/tenants/tenant.types.js'
+import type { TenantRepository } from '../../src/core/tenants/tenant.repository.js'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -286,5 +288,42 @@ export class InMemoryUsageRepository implements UsageRepository {
       automationActions,
       errors: 0
     }
+  }
+}
+
+export class InMemoryTenantRepository implements TenantRepository {
+  private readonly rows = new Map<string, Tenant>()
+  private seq = 0
+
+  async create (input: TenantCreateInput): Promise<Tenant> {
+    const now = new Date()
+    const tenant: Tenant = {
+      id: `tenant_${++this.seq}`,
+      name: input.name,
+      status: 'active',
+      apiKeys: input.apiKeys ?? [],
+      createdAt: now,
+      updatedAt: now
+    }
+    this.rows.set(tenant.id, clone(tenant))
+    return clone(tenant)
+  }
+
+  async findById (id: string): Promise<Tenant | null> {
+    const row = this.rows.get(id)
+    return row == null ? null : clone(row)
+  }
+
+  async findByApiKey (apiKey: string): Promise<Tenant | null> {
+    const row = [...this.rows.values()].find((t) => t.apiKeys.includes(apiKey))
+    return row == null ? null : clone(row)
+  }
+
+  async update (id: string, patch: TenantUpdateInput): Promise<Tenant | null> {
+    const row = this.rows.get(id)
+    if (row == null) return null
+    const updated = { ...row, ...patch, updatedAt: new Date() } as Tenant
+    this.rows.set(id, updated)
+    return clone(updated)
   }
 }

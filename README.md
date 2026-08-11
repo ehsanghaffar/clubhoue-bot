@@ -228,6 +228,30 @@ All routes are mounted under `/api`. Interactive docs are available at **`/api-d
 | **Notifications** | `POST /api/notifications` | Get notifications (`size`, `page`) |
 | | `POST /api/notifications/actionable` | Get actionable notifications |
 
+### `/v1` (public API)
+
+The modern, tenant-scoped API is mounted under `/v1`. Every route requires a valid API key (`x-api-key` header) that resolves to an **active tenant**, and all resource access is scoped to that tenant — a bot, room, or credential owned by another tenant returns `404`. Responses use a `{ "data": ... }` envelope; create endpoints return `201`, deletes return `204`, and errors return `{ "error": { "type", "message" } }`. A global rate limit of **100 requests/minute** applies. Credential tokens are encrypted at rest and **never returned** by the API.
+
+| Group | Endpoint | Description |
+| --- | --- | --- |
+| **Bots** | `POST /v1/bots` | Create a bot (`name`, `platform: "clubhouse"`, optional `aiConfig`, `personality`, `welcomeMessage`) |
+| | `GET /v1/bots` | List the tenant's bots |
+| | `GET /v1/bots/:botId` | Get one bot |
+| | `PATCH /v1/bots/:botId` | Update a bot (partial `aiConfig` is merged, not replaced) |
+| | `DELETE /v1/bots/:botId` | Stop and delete a bot |
+| | `POST /v1/bots/:botId/start` | Start the bot (needs an active credential; otherwise `400`) |
+| | `POST /v1/bots/:botId/stop` | Stop the bot |
+| **Credentials** | `POST /v1/bots/:botId/credentials` | Add a platform token (encrypted at rest) |
+| | `GET /v1/bots/:botId/credentials` | List credentials (ciphertext never exposed) |
+| | `DELETE /v1/bots/:botId/credentials/:credentialId` | Remove a credential |
+| **Rooms** | `POST /v1/bots/:botId/rooms` | Configure a room (`externalRoomId`, optional `settings`) |
+| | `GET /v1/bots/:botId/rooms` | List a bot's rooms |
+| | `GET /v1/bots/:botId/rooms/:roomId` | Get one room |
+| | `POST /v1/bots/:botId/rooms/:roomId/join` | Join the room on the platform |
+| | `POST /v1/bots/:botId/rooms/:roomId/leave` | Leave the room |
+| **Usage** | `GET /v1/bots/:botId/usage` | Per-bot usage + analytics summary |
+| | `GET /v1/bots/:botId/events` | Recent usage events (`?limit=`, default 50, max 200) |
+
 ---
 
 ## Key Concepts

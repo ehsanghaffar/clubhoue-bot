@@ -36,7 +36,9 @@ const getEncryptionKey = (): Buffer => {
       'CREDENTIAL_ENCRYPTION_KEY is not set; using a development-only key. ' +
         'Set CREDENTIAL_ENCRYPTION_KEY in production.'
     )
-    key = Buffer.from(DEV_ONLY_KEY, 'utf8')
+    // Stretch the dev key to the 32 bytes AES-256 requires, like any other
+    // non-hex value below. The literal would otherwise be the wrong key length.
+    key = scryptSync(DEV_ONLY_KEY, 'clubhouse-credential-salt', 32)
   } else if (/^[0-9a-fA-F]{64}$/.test(raw)) {
     key = Buffer.from(raw, 'hex')
   } else {

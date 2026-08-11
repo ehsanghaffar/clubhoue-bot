@@ -8,7 +8,7 @@ A TypeScript + Express server that controls a [Clubhouse](https://www.joinclubho
 
 ## Features
 
-- 🤖 **AI chatbot** — polls a channel every 15 seconds and answers `#`-prefixed questions with OpenAI (default `gpt-4o`), replying in the same language with `< 270` chars.
+- 🤖 **AI chatbot** — polls a channel every 15 seconds and answers `#`-prefixed questions with OpenAI (default `gpt-4o-mini`), replying in the same language with `< 280` chars.
 - 🎙️ **Channel automation** — join/leave rooms, fetch the feed and room messages, send messages, accept speaker invites, get room users and current-channel info.
 - 🗣️ **Auto invite-to-stage** — when a user on the `INVITE_ALLOW_LIST` asks to go on stage (keyword-based, incl. Persian), they are invited to the speakers automatically.
 - ⏱️ **Pomodoro timer** — runs a 45-minute focus / 15-minute break cycle per channel, started at the top of each hour.
@@ -27,7 +27,7 @@ A TypeScript + Express server that controls a [Clubhouse](https://www.joinclubho
 | Runtime | Node.js 22 |
 | Web framework | Express 5 |
 | Database | MongoDB via Mongoose 9 |
-| AI | OpenAI SDK (`gpt-4o`, configurable) |
+| AI | OpenAI SDK (`gpt-4o-mini`, configurable) |
 | Auth | API key (`x-api-key` header) + `express-rate-limit` |
 | Validation | Joi |
 | Docs | swagger-jsdoc + swagger-ui-express |
@@ -101,7 +101,7 @@ You should see `Server running at http://localhost:4000`.
 
 ### Docker
 
-The repo ships with a multi-stage `Dockerfile` (build + slim runtime, non-root user, healthcheck), a dev `docker-compose.yml` (app + MongoDB), and a production `docker-compose.prod.yml` (api + worker + mongo + redis).
+The repo ships with a multi-stage `Dockerfile` (build + slim runtime, non-root user, healthcheck), a dev `docker-compose.yml` (app + MongoDB), and a production `docker-compose.prod.yml` (api + mongo — a single live runtime).
 
 **Development**
 
@@ -119,14 +119,12 @@ cp .env.example .env.production   # fill in real secrets, then:
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-The production stack runs four services (spec §26):
+The production stack runs two services:
 
-- `api` — serves the HTTP API on port `4000`, healthcheck on `/health`
-- `worker` — background worker process (`node dist/worker.js`)
+- `api` — serves the HTTP API on port `4000`; the ONLY live BotManager runtime (room loops, moderation, automation, AI), healthcheck on `/health`
 - `mongo` — MongoDB 6, persistent volume
-- `redis` — Redis 7, persistent volume (reserved for the Redis-backed queue/dedup upgrade path)
 
-API and worker share one image; keys and credentials are injected at runtime via `.env.production` and are never baked into the image.
+There is **no separate worker and no Redis** in the MVP: the worker (`src/worker.ts`) and Redis are future infrastructure (Scheduler → Queue → Worker) and are deliberately not deployed. Keys and credentials are injected at runtime via `.env.production` and are never baked into the image.
 
 ### CI
 
@@ -157,9 +155,10 @@ Configure branch protection on `main`/`develop` to require both jobs as status c
 | `NODE_ENV` | No | — | `development` / `production` (swagger spec paths, error verbosity, console logs, `DEBUG=*`) |
 | `LOG_LEVEL` | No | `info` | Winston log level |
 | `INVITE_ALLOW_LIST` | No | — | Comma-separated Clubhouse user IDs allowed to be auto-invited to the stage |
-| `OPENAI_MODEL` | No | `gpt-4o` | Chatbot model |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | Chatbot model |
 | `OPENAI_MAX_TOKENS` | No | `150` | Max tokens per chatbot reply |
-| `OPENAI_TEMPERATURE` | No | `0.7` | Chatbot sampling temperature |
+| `OPENAI_TEMPERATURE` | No | `0.4` | Chatbot sampling temperature |
+| `CREDENTIAL_ENCRYPTION_KEY` | **Prod** | — | AES-256-GCM key for encrypted credentials. **Required in production** (startup fails without it; no dev-key fallback). Losing it makes encrypted credentials unrecoverable |
 | `SALT` | No | `10` | Reserved for password hashing |
 
 ---
@@ -332,7 +331,7 @@ The server validates the `API_KEY` env var at boot. Requests to protected endpoi
 
 - Polls a channel every **15 seconds**.
 - Only reacts to messages that start with `#` (the "question" convention).
-- Sends the question to OpenAI (`gpt-4o` by default), instructed to reply briefly (< 270 chars), in the same language, and to protect "Ehsan" as confidential.
+- Sends the question to OpenAI (`gpt-4o-mini` by default), instructed to reply briefly (< 280 chars), in the same language, and to protect "Ehsan" as confidential.
 - Replies are prefixed with `{user_name} Jan,` and posted back to the room.
 - A message cache (`utils/messageCache.ts`, 24h TTL) prevents duplicate replies.
 

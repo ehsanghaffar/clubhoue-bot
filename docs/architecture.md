@@ -15,7 +15,7 @@ API (HTTP)
 Bot Management (Bots / Rooms / Credentials / Tenants)
    │
    ▼
-Event / Automation Engine (Welcome / AI / Speaker)
+Event / Automation Engine (Moderation → Welcome / AI / Speaker)
    │
    ▼
 Platform Adapter (Clubhouse)
@@ -36,11 +36,20 @@ flowchart LR
     BM --> Room[RoomService]
     Room --> Bus[EventBus]
     Bus --> Proc[EventProcessor]
-    Proc --> Auto[AutomationStage]
+    Proc --> Mod[ModerationStage]
+    Mod --> Auto[AutomationStage]
     Auto --> Rules[Welcome / Speaker / AI rules]
     Auto --> Usage[UsageService / Analytics]
     Rules --> Adapter
 ```
+
+## Runtime model — exactly ONE live bot runtime
+
+The MVP runs a **single process**: the API server (`src/server.ts`) owns the
+only live BotManager runtime (bot room loops, automation, AI, usage). The
+standalone worker entry (`src/worker.ts`) is **future infrastructure**
+(Scheduler → Queue → Worker) and is deliberately not wired or deployed —
+running it alongside the API would create a second live bot runtime.
 
 ## Key rules
 
@@ -81,8 +90,8 @@ src/
 
 ## Main processes
 
-- **API server** (`src/server.ts` → `dist/server.js`) — HTTP + Swagger; also embeds the worker for the single-process MVP.
-- **Worker** (`src/worker.ts` → `dist/worker.js`) — standalone background process for production (same core pipeline, no HTTP).
+- **API server** (`src/server.ts` → `dist/server.js`) — the ONLY live process. Serves HTTP + Swagger, boots the BotManager runtime (`botManager.startAll()` exactly once), and runs the event pipeline (moderation → automation → usage) in-process.
+- **Worker** (`src/worker.ts` → `dist/worker.js`) — FUTURE infrastructure. Not started in the MVP; must not boot live bots. Reserved for the Scheduler → Queue → Worker architecture.
 
 ## See also
 

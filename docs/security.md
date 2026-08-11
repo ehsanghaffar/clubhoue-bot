@@ -14,7 +14,9 @@ All `/v1` resource access is tenant-scoped through authorization loaders (`requi
 ## Credentials at rest
 
 - Platform tokens are encrypted with **AES-256-GCM** before persistence (`src/core/credentials/credential-encryption.ts`); envelopes are JSON `{ v, iv, tag, data }` and tampering is detectable via the auth tag.
-- The key comes from `CREDENTIAL_ENCRYPTION_KEY` (64-char hex used directly, otherwise scrypt-stretched to 32 bytes). If unset, a documented development-only key is used and a warning is logged — **production must set it**.
+- The key comes from `CREDENTIAL_ENCRYPTION_KEY` (64-char hex used directly, otherwise scrypt-stretched to 32 bytes).
+- **Production enforcement:** if `NODE_ENV=production` and the key is missing, startup **fails** (`getMissingEnvVars` + the encryption module throw). There is no silent fallback to a known key in production. Outside production, an unset key falls back to a documented development-only key with a warning.
+- **Key rotation / loss:** rotating the key makes previously-encrypted credentials unrecoverable (envelopes are encrypted with the key that was set when they were written). Losing the key means the encrypted credentials can never be decrypted. See [`.env.example`](../.env.example) and [`docs/deployment.md`](deployment.md) for the required format.
 - Ciphertext is **never returned** by the API; the only plaintext boundary is `BotService.createAdapter` just before an adapter is built.
 
 ## Input validation & abuse
@@ -22,6 +24,14 @@ All `/v1` resource access is tenant-scoped through authorization loaders (`requi
 - Request bodies are validated with Joi (`validateBody`) on create/update routes.
 - Rate limiting: 100 requests/minute per IP on both `/api` and `/v1` (`express-rate-limit`); sensitive legacy actions get a stricter limiter.
 - The bot's own messages are suppressed in AI automation (no self-echo loops).
+
+## Moderation before AI
+
+The event pipeline runs a **moderation stage before automation/AI** (`src/core/moderation/moderation-stage.ts`). A blocked message (blocked user, blocked keyword, or per bot+room+user rate limit) returns `block` and never reaches the AI rules or the usage stage. Moderation is gated by each room's `moderationEnabled` setting (default off).
+
+## API docs exposure
+
+`/api-docs` (Swagger UI) is **intentionally public**: it serves only the route/parameter schema generated from source comments and exposes no credentials, secrets, tenant data, or stack traces. The raw OpenAPI document at `/swagger.json` is protected by the API key. This is an accepted trade-off for development usability (protecting `/api-docs` would break the UI's static-asset loading without the custom header).
 
 ## Error handling
 
@@ -37,7 +47,11 @@ The global error handler normalizes errors into `{ "error": { "type", "message" 
 
 - Multi-stage Dockerfile, runtime runs as the non-root `node` user.
 - Secrets are injected at runtime via `.env.production` — never baked into the image (`.dockerignore` excludes `.env*`).
-- `.env.production` is gitignored; `.env.example` documents the required variables without real values.
+- `.env.production` is gitignored; `.env.example` documents the required variables (including `CREDENTIAL_ENCRYPTION_KEY`) without real values.
+
+## Deployment topology
+
+- The production compose runs a **single app process** (`api` + `mongo`). There is no separate worker and no Redis in the MVP — Redis and the worker are future infrastructure and are not provisioned because nothing in the MVP uses them.
 
 ## See also
 

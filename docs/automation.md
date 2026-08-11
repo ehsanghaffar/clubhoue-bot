@@ -32,9 +32,10 @@ flowchart LR
 ```
 
 - **EventBus** — typed publish/subscribe.
-- **EventProcessor** — subscribes to the bus and runs registered stages sequentially for each event. A failing stage is logged but does not block later stages.
+- **EventProcessor** — subscribes to the bus and runs registered stages sequentially for each event. A failing stage is logged but does not block later stages. A stage that returns `'block'` stops the pipeline for that event so later stages never see it.
+- **ModerationStage** — runs first, before automation/AI. Gates `message.created` events (blocked users, blocked keywords, per bot+room+user rate limit) when the room's `moderationEnabled` is on; a blocked event is `'block'`ed and never reaches the rules or the usage stage.
 - **AutomationStage** — handles `user.joined`, `message.created`, and `speaker.requested`. It resolves a rule context (bot + room + adapter) through `BotManager.resolveContext` — so the stage never decrypts credentials or touches platform internals — then evaluates the rules and records `automation_triggered` usage.
-- **UsageStage** — turns platform-observed events into usage records (`room.joined`→`room_join`, `room.left`→`room_leave`, `message.created`→`message_received`, `speaker.invited`→`speaker_invite`).
+- **UsageStage** — turns platform-observed events into usage records (`room.joined`→`room_join`, `room.left`→`room_leave`, `message.created`→`message_received`, `speaker.invited`→`speaker_invite`). Runs last, so blocked events produce no usage.
 
 ## Rules
 
@@ -48,4 +49,4 @@ Rules are pure predicates plus a `run` that acts through a `RuleContext` (`sendM
 
 ## Wiring
 
-`src/core/startup.ts` (`configureEventPipeline`) registers the automation and usage stages on the shared bus and starts the processor during server/worker bootstrap.
+`src/core/startup.ts` (`configureEventPipeline`) registers the moderation, automation, and usage stages on the shared bus and starts the processor during server bootstrap.

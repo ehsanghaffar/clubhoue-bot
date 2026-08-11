@@ -11,6 +11,8 @@ import db from './config/db/db.js'
 import { getMissingEnvVars } from './config/environment.js'
 import { initializeService } from './services/service-initializer.js'
 import { timerService } from './services/timer.service.js'
+import { tenantService } from './core/tenants/tenant.service.js'
+import { eventProcessor } from './core/events/event-processor.js'
 import { createApp } from './app.js'
 
 dotenv.config()
@@ -33,7 +35,9 @@ const bootstrap = async (): Promise<void> => {
   try {
     validateEnvironment()
     await db()
+    await tenantService.ensureDefaultTenant()
     initializeService()
+    eventProcessor.start()
 
     const server: http.Server = http.createServer(app)
 
@@ -53,12 +57,14 @@ const bootstrap = async (): Promise<void> => {
     process.on('SIGINT', () => {
       logger.info('Shutting down (SIGINT)')
       timerService.stop()
+      eventProcessor.stop()
       server.close(() => process.exit(0))
     })
 
     process.on('SIGTERM', () => {
       logger.info('Shutting down (SIGTERM)')
       timerService.stop()
+      eventProcessor.stop()
       server.close(() => process.exit(0))
     })
 

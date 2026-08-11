@@ -6,10 +6,10 @@
  */
 import fs from 'fs'
 import path from 'path'
-import { clubService } from './club-api.service.js'
-import type { AgentFunction } from '../types/services.js'
+import { clubService } from '../platforms/clubhouse/index.js'
+import type { AgentFunction } from '../platforms/clubhouse/types.js'
 import type { Profile } from '../types/config.js'
-import agent from '../helper/agent.js'
+import agent from '../platforms/clubhouse/agent.js'
 import logger from '../utils/logger.js'
 
 export function initializeService (): void {

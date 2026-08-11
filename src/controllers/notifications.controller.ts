@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { type Request, type Response, type NextFunction } from 'express'
-import { clubService } from '../services/club-api.service.js'
+import { clubService } from '../platforms/clubhouse/index.js'
 import { createInternalError } from '../utils/errors.js'
 import logger from '../utils/logger.js'
 

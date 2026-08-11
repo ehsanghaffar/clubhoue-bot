@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import logger from './logger.js'
-import { clubService } from '../services/club-api.service.js'
+import { clubService } from '../platforms/clubhouse/index.js'
 import { constants } from '../config/index.js'
 
 interface PingLoopInfo {

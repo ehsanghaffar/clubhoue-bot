@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { type Request, type Response, type NextFunction } from 'express'
-import { clubService } from '../services/club-api.service.js'
+import { clubService } from '../platforms/clubhouse/index.js'
 import { channelService } from '../services/channel.service.js'
 import ValidToken from '../models/token.js'
 import { startPingLoop, stopPingLoop } from '../utils/pingManager.js'

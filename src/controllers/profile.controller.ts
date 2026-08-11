@@ -12,8 +12,8 @@ import Joi from 'joi'
 import ValidToken from '../models/token.js'
 import { constants } from '../config/index.js'
 import { createValidationError, createInternalError, createNotFoundError } from '../utils/errors.js'
-import { clubService } from '../services/club-api.service.js'
-import type { SearchUsersOptions } from '../types/services.js'
+import { clubService } from '../platforms/clubhouse/index.js'
+import type { SearchUsersOptions } from '../platforms/clubhouse/types.js'
 import logger from '../utils/logger.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

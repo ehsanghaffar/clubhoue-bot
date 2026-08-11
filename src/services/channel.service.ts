@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../types/services.js'
+import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../platforms/clubhouse/types.js'
 import type { Profile } from '../types/config.js'
-import { clubService, type ClubApiService } from './club-api.service.js'
+import { clubService, type ClubApiService } from '../platforms/clubhouse/index.js'
 import { constants } from '../config/index.js'
 import logger from '../utils/logger.js'
 

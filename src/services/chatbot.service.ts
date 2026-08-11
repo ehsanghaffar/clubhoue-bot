@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { clubService } from './club-api.service.js'
+import { clubService } from '../platforms/clubhouse/index.js'
 import { getOpenAIClient } from './openai.service.js'
 import { getNewMessages as getNewMessagesFromCache, markMessagesSeen } from '../utils/messageCache.js'
 import { constants } from '../config/index.js'

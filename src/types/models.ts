@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Document, Types } from 'mongoose'
+import { type Document, type Types } from 'mongoose'
 
 export interface IUser {
   name: string

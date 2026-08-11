@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Request, Response, NextFunction } from 'express'
+import { type Request, type Response, type NextFunction } from 'express'
 import { clubService } from '../services/club-api.service.js'
 import { createInternalError } from '../utils/errors.js'
 import logger from '../utils/logger.js'

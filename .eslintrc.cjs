@@ -65,5 +65,5 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['dist', 'node_modules', '*.config.js', 'tools', '.eslintrc.js'],
+  ignorePatterns: ['dist', 'node_modules', '*.config.js', 'tools', 'tests', '.eslintrc.cjs'],
 };

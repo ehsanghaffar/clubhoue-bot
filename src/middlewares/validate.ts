@@ -5,7 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
-import Joi from 'joi'
+import type Joi from 'joi'
 import { AppError, ErrorTypes } from '../utils/errors.js'
 
 /**

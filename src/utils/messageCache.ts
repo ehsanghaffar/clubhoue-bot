@@ -46,7 +46,7 @@ export const markMessagesSeen = <T extends Message>(
   channel: string,
   messages: T[]
 ): void => {
-  messages.forEach((m) => addMessage(channel, m.message_id))
+  messages.forEach((m) => { addMessage(channel, m.message_id) })
 }
 
 setInterval(() => {

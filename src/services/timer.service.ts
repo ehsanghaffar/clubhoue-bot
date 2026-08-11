@@ -48,37 +48,40 @@ export class TimerService {
       clearInterval(this.activeTimer)
     }
 
-    let counter = 0
+    const durationMs = duration * 1000
+    const startedAt = Date.now()
 
-    const interval = setInterval(async () => {
+    const tick = async (): Promise<void> => {
       try {
-        counter++
-
-        if (counter >= duration) {
-          clearInterval(interval)
-          this.activeTimer = null
-
-          if (nextTimer != null) {
-            await nextTimer(channel, emoji)
-          }
-
-          await clubService.getChannelMessages({ channel })
+        if (Date.now() - startedAt < durationMs) {
+          return
         }
+
+        clearInterval(interval)
+        this.activeTimer = null
+
+        if (nextTimer != null) {
+          await nextTimer(channel, emoji)
+        }
+
+        await clubService.getChannelMessages({ channel })
       } catch (error) {
         logger.error('Timer error:', { error })
         clearInterval(interval)
         this.activeTimer = null
       }
+    }
+
+    const interval = setInterval(() => {
+      void tick()
     }, constants.TIME.SECOND)
 
     this.activeTimer = interval
   }
 
-  private readonly startPomodoroTimer = async (channel: string, emoji: string): Promise<void> =>
-    await this.startTimer(channel, emoji, this.config.pomodoroDuration, this.startBreakTimer)
+  private readonly startPomodoroTimer = async (channel: string, emoji: string): Promise<void> => { await this.startTimer(channel, emoji, this.config.pomodoroDuration, this.startBreakTimer) }
 
-  private readonly startBreakTimer = async (channel: string, emoji: string): Promise<void> =>
-    await this.startTimer(channel, emoji, this.config.breakDuration, this.startPomodoroTimer)
+  private readonly startBreakTimer = async (channel: string, emoji: string): Promise<void> => { await this.startTimer(channel, emoji, this.config.breakDuration, this.startPomodoroTimer) }
 
   /**
    * Starts a pomodoro cycle at the top of each hour.
@@ -102,7 +105,7 @@ export class TimerService {
     const check = (): void => {
       const date = new Date()
       if (date.getMinutes() === 0 && (this.activeTimer == null)) {
-        this.startPomodoroTimer(channel, emoji)
+        void this.startPomodoroTimer(channel, emoji)
       }
     }
 

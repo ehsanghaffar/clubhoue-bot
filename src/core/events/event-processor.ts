@@ -10,12 +10,19 @@ import { eventBus } from './event-bus.js'
 import logger from '../../utils/logger.js'
 
 /**
+ * Result a stage may return. Returning `'block'` stops the pipeline for the
+ * current event so later stages (e.g. automation, usage) never see it. Used by
+ * the moderation stage to gate messages before they reach AI/automation.
+ */
+export type EventStageResult = void | 'block'
+
+/**
  * A single step in the event pipeline. Stages are registered in order and run
  * sequentially for each event (e.g. moderation -> automation -> usage).
  */
 export interface EventStageHandler {
   readonly name: string
-  handle: (event: CommunityEvent<unknown>) => Promise<void> | void
+  handle: (event: CommunityEvent<unknown>) => Promise<EventStageResult> | EventStageResult
 }
 
 /**
@@ -56,7 +63,18 @@ export class EventProcessor {
   private async process (event: CommunityEvent<unknown>): Promise<void> {
     for (const stage of this.stages) {
       try {
-        await stage.handle(event)
+        const result = await stage.handle(event)
+        // A stage that returns 'block' gates the event: remaining stages
+        // (automation, AI, usage) must not observe it.
+        if (result === 'block') {
+          logger.debug('Event blocked by stage', {
+            stage: stage.name,
+            type: event.type,
+            botId: event.botId,
+            roomId: event.roomId
+          })
+          return
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         logger.error('Event stage failed', {

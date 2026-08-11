@@ -28,7 +28,14 @@ const roomSettingsSchema = new Schema<BotRoomSettings>(
     welcomeEnabled: { type: Boolean, default: true },
     aiEnabled: { type: Boolean, default: true },
     autoInviteEnabled: { type: Boolean, default: false },
-    moderationEnabled: { type: Boolean, default: false }
+    moderationEnabled: { type: Boolean, default: false },
+    blockedUsers: { type: [String], default: undefined },
+    blockedKeywords: { type: [String], default: undefined },
+    messageRateLimit: {
+      type: { max: Number, windowSeconds: Number },
+      default: undefined,
+      _id: false
+    }
   },
   { _id: false }
 )

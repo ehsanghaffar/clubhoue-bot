@@ -7,15 +7,23 @@
 import { eventProcessor } from './events/event-processor.js'
 import { automationEngine } from './automation/default-engine.js'
 import { AutomationStage } from './automation/automation-stage.js'
+import { ModerationStage } from './moderation/moderation-stage.js'
 import { botManager } from './bots/index.js'
+import { roomService } from './rooms/index.js'
 import { usageService, usageStage } from './usage/index.js'
 
 /**
- * Wires the event pipeline (automation + usage stages) and starts the
- * processor. Called once during server bootstrap, after the DB connection is
- * ready.
+ * Wires the event pipeline (moderation + automation + usage stages) and starts
+ * the processor. Called once during server bootstrap, after the DB connection
+ * is ready. Stage order matters: moderation gates `message.created` events
+ * before automation/AI, and the usage stage runs last so blocked events never
+ * produce usage records.
  */
 export const configureEventPipeline = (): void => {
+  eventProcessor.addStage(new ModerationStage({
+    getRoom: async (event) =>
+      await roomService.findByIdAndTenantAndBot(event.roomId, event.tenantId, event.botId)
+  }))
   eventProcessor.addStage(new AutomationStage({
     engine: automationEngine,
     resolveContext: async (event) => await botManager.resolveContext(event),

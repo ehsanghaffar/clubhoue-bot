@@ -14,11 +14,24 @@ export type BotRoomStatus =
   | 'inactive'
   | 'error'
 
+export interface RoomMessageRateLimit {
+  /** Max messages per window before automation is gated for that user. */
+  max: number
+  /** Length of the window in seconds. */
+  windowSeconds: number
+}
+
 export interface BotRoomSettings {
   welcomeEnabled: boolean
   aiEnabled: boolean
   autoInviteEnabled: boolean
   moderationEnabled: boolean
+  /** External platform user ids whose messages are ignored (needs moderationEnabled). */
+  blockedUsers?: string[]
+  /** Keywords that gate a message before automation/AI (case-insensitive). */
+  blockedKeywords?: string[]
+  /** Per bot+room+user message rate limit applied by the moderation stage. */
+  messageRateLimit?: RoomMessageRateLimit
 }
 
 /**
@@ -51,7 +64,10 @@ export const DEFAULT_ROOM_SETTINGS: BotRoomSettings = {
   welcomeEnabled: true,
   aiEnabled: true,
   autoInviteEnabled: false,
-  moderationEnabled: false
+  moderationEnabled: false,
+  blockedUsers: [],
+  blockedKeywords: [],
+  messageRateLimit: { max: 10, windowSeconds: 60 }
 }
 
 export const resolveRoomSettings = (

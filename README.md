@@ -35,7 +35,7 @@ A TypeScript + Express server that controls a [Clubhouse](https://www.joinclubho
 | Testing | Vitest |
 | Package manager | pnpm 10 |
 | Containerization | Docker (multi-stage build) + docker-compose |
-| CI | GitHub Actions (typecheck, lint, test, build) |
+| CI | GitHub Actions (typecheck, lint, test, build, dependency audit) |
 
 ---
 
@@ -127,6 +127,19 @@ The production stack runs four services (spec §26):
 - `redis` — Redis 7, persistent volume (reserved for the Redis-backed queue/dedup upgrade path)
 
 API and worker share one image; keys and credentials are injected at runtime via `.env.production` and are never baked into the image.
+
+### CI
+
+Every push and pull request runs the validation pipeline (spec §27) via `.github/workflows/ci.yml`:
+
+```text
+install → typecheck → lint → test → build → dependency audit
+```
+
+- `checks` job — typecheck, lint, test, build.
+- `dependency-audit` job — `pnpm audit`; high-severity advisories are surfaced, **critical** vulnerabilities fail the run.
+
+Configure branch protection on `main`/`develop` to require both jobs as status checks so that code failing these checks cannot be merged.
 
 ---
 

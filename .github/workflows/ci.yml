@@ -1,12 +1,27 @@
 name: CI
 
+# Validation pipeline (spec §27). Every pull request must pass:
+#   install → typecheck → lint → test → build → dependency audit
+# The repository must not merge code that fails these checks. Enforce that by
+# configuring branch protection to require the `checks` and `dependency-audit`
+# jobs below on `main`/`develop`.
+
 on:
   push:
     branches: [main, develop]
   pull_request:
+  workflow_dispatch: # Allows manual trigger
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   checks:
+    name: Checks (typecheck · lint · test · build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,3 +52,34 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.0.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit (high+ advisories surfaced, not blocking)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Fail on critical vulnerabilities
+        run: |
+          CRITICAL=$(pnpm audit --audit-level=critical --json | jq -r '.metadata.vulnerabilities.critical // 0')
+          echo "critical vulnerabilities: $CRITICAL"
+          [ "$CRITICAL" -eq 0 ]

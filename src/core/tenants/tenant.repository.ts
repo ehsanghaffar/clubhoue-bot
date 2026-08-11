@@ -4,14 +4,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { Tenant, TenantCreateInput, TenantStatus } from './tenant.types.js'
+import type { Tenant, TenantCreateInput, TenantUpdateInput } from './tenant.types.js'
 import { TenantModel, toTenant } from '../../models/tenant.js'
-
-export interface TenantUpdateInput {
-  name?: string
-  status?: TenantStatus
-  apiKeys?: string[]
-}
 
 export interface TenantRepository {
   create: (input: TenantCreateInput) => Promise<Tenant>

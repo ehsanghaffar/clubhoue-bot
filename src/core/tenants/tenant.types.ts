@@ -25,3 +25,9 @@ export interface TenantCreateInput {
   name: string
   apiKeys?: string[]
 }
+
+export interface TenantUpdateInput {
+  name?: string
+  status?: TenantStatus
+  apiKeys?: string[]
+}

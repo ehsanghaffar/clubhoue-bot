@@ -13,6 +13,8 @@ export interface BuildRuleContextInput {
   bot: Bot
   room: BotRoom
   adapter: CommunityPlatformAdapter
+  /** The bot's own external user id on the platform (for self-message detection). */
+  botUserId?: string
 }
 
 /**
@@ -27,6 +29,7 @@ export const createRuleContext = (input: BuildRuleContextInput): RuleContext => 
     bot,
     room,
     adapter,
+    botUserId: input.botUserId,
     sendMessage: async (content: string): Promise<void> => {
       await adapter.sendMessage(room.externalRoomId, content)
     },

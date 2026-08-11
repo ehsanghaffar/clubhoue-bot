@@ -17,6 +17,8 @@ export interface RuleContext {
   bot: Bot
   room: BotRoom
   adapter: CommunityPlatformAdapter
+  /** The bot's own external user id on the platform (for self-message detection). */
+  botUserId?: string
   sendMessage: (content: string) => Promise<void>
   inviteSpeaker: (userId: string) => Promise<void>
 }

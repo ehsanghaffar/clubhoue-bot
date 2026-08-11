@@ -3,7 +3,7 @@
 Two HTTP surfaces are served by the same Express app:
 
 - **`/v1`** — the modern, tenant-scoped API (primary).
-- **`/api`** — the legacy Clubhouse-specific API, preserved for backward compatibility.
+- **`/api`** — the legacy Clubhouse-specific API, preserved for backward compatibility but **deprecated** (see below).
 
 Base server: port `4000` by default (`PORT`).
 
@@ -34,6 +34,12 @@ Every `/v1` route requires a valid API key (`x-api-key` header) that resolves to
 | | `GET /v1/bots/:botId/rooms/:roomId` | Get one room |
 | | `POST /v1/bots/:botId/rooms/:roomId/join` | Join the room on the platform |
 | | `POST /v1/bots/:botId/rooms/:roomId/leave` | Leave the room |
+| **Messages** | `POST /v1/bots/:botId/rooms/:roomId/messages` | Send a message (`message`) — migrated from `send-room-msg` |
+| | `GET /v1/bots/:botId/rooms/:roomId/messages` | List normalized room messages — migrated from `room-msgs` |
+| | `POST /v1/bots/:botId/rooms/:roomId/accept-invite` | Accept a speaker invite — migrated from `accept_invite` |
+| **Users** | `POST /v1/bots/:botId/users/search` | Search users (`query`) — migrated from `search_users` |
+| | `GET /v1/bots/:botId/users/:userId` | Get a user by id — migrated from `get_user` |
+| | `GET /v1/bots/:botId/me` | The bot's own profile — migrated from `channels/me` |
 | **Usage** | `GET /v1/bots/:botId/usage` | Usage summary for a bot |
 | | `GET /v1/bots/:botId/events` | Recorded usage events (`?limit=` honored) |
 
@@ -52,9 +58,9 @@ content-type: application/json
 { "data": { "id": "…", "name": "Alpha", "platform": "clubhouse", "status": "created", … } }
 ```
 
-## `/api` (legacy Clubhouse API)
+## `/api` (legacy Clubhouse API — deprecated)
 
-Clubhouse-specific endpoints, protected by the API key and rate limited. Preserved so existing integrations keep working.
+Clubhouse-specific endpoints, protected by the API key and rate limited. The surface is **deprecated** (RFC 8594): every `/api` response carries `Deprecation` and `Sunset` headers plus a `Link: </v1>; rel="successor-version"`, and the server logs a deprecation warning at startup. It keeps working until the sunset date so existing integrations can migrate at their own pace.
 
 | Area | Endpoints |
 | --- | --- |
@@ -64,6 +70,27 @@ Clubhouse-specific endpoints, protected by the API key and rate limited. Preserv
 | Notifications | `POST /api/notifications`, `POST /api/notifications/actionable` |
 | Profiles | `POST /api/profiles/add_profile`, `change-profile`, `search_users`, `accept_invite`, `get_user`; `GET /api/profiles/all_users`, `GET /api/profiles/get_token` |
 | Users | `POST /api/users/search_users` |
+
+### Migration map (legacy → `/v1`)
+
+Most legacy capabilities have a tenant-scoped `/v1` equivalent:
+
+| Legacy | `/v1` replacement |
+| --- | --- |
+| `POST /api/profiles/add_profile` / `GET get_token` | `POST /v1/bots/:botId/credentials` (per-bot, encrypted) |
+| `POST /api/channels/join_room` | `POST /v1/bots/:botId/rooms/:roomId/join` |
+| `POST /api/channels/leave` | `POST /v1/bots/:botId/rooms/:roomId/leave` |
+| `POST /api/channels/send-room-msg` | `POST /v1/bots/:botId/rooms/:roomId/messages` |
+| `POST /api/channels/room-msgs` | `GET /v1/bots/:botId/rooms/:roomId/messages` |
+| `POST /api/channels/accept_invite`, `POST /api/profiles/accept_invite` | `POST /v1/bots/:botId/rooms/:roomId/accept-invite` |
+| `POST /api/channels/current-channel` | `GET /v1/bots/:botId/rooms/:roomId` |
+| `POST /api/channels/channels` | `GET /v1/bots/:botId/rooms` |
+| `POST /api/channels/me` | `GET /v1/bots/:botId/me` |
+| `POST /api/channels/search_users`, `POST /api/profiles/search_users`, `POST /api/users/search_users` | `POST /v1/bots/:botId/users/search` |
+| `POST /api/profiles/get_user` | `GET /v1/bots/:botId/users/:userId` |
+| `POST /api/chatbot/start` / `stop` | `POST /v1/bots/:botId/start` / `stop` (rooms control AI via `aiEnabled`) |
+
+Capabilities that remain Clubhouse-specific (no platform-agnostic adapter method yet) stay on `/api` for now: `get_room_users`, `start-timer`, `notifications`, `notifications/actionable`, `all_users`, `change-profile`. Migrating them would require extending the platform adapter contract.
 
 ## Error format
 

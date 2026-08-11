@@ -250,7 +250,9 @@ cl-api/
 
 ## API Overview
 
-All routes are mounted under `/api`. Interactive docs are available at **`/api-docs`**. A global rate limit of **100 requests/minute** applies to `/api`; profile mutation endpoints additionally allow **10/minute**.
+> **Deprecated:** the `/api` surface below is preserved for backward compatibility but **deprecated** (RFC 8594). Every `/api` response carries `Deprecation` and `Sunset` headers and a `Link: </v1>; rel="successor-version"`; the server logs a deprecation warning at startup. New integrations should use the `/v1` API. See [`docs/api.md`](docs/api.md) for the legacy → `/v1` migration map.
+
+All legacy routes are mounted under `/api`. Interactive docs are available at **`/api-docs`**. A global rate limit of **100 requests/minute** applies to `/api`; profile mutation endpoints additionally allow **10/minute**.
 
 | Group | Endpoint | Description |
 | --- | --- | --- |
@@ -298,6 +300,12 @@ The modern, tenant-scoped API is mounted under `/v1`. Every route requires a val
 | | `GET /v1/bots/:botId/rooms/:roomId` | Get one room |
 | | `POST /v1/bots/:botId/rooms/:roomId/join` | Join the room on the platform |
 | | `POST /v1/bots/:botId/rooms/:roomId/leave` | Leave the room |
+| **Messages** | `POST /v1/bots/:botId/rooms/:roomId/messages` | Send a message (migrated from `send-room-msg`) |
+| | `GET /v1/bots/:botId/rooms/:roomId/messages` | List room messages (migrated from `room-msgs`) |
+| | `POST /v1/bots/:botId/rooms/:roomId/accept-invite` | Accept a speaker invite (migrated from `accept_invite`) |
+| **Users** | `POST /v1/bots/:botId/users/search` | Search users (migrated from `search_users`) |
+| | `GET /v1/bots/:botId/users/:userId` | Get a user by id (migrated from `get_user`) |
+| | `GET /v1/bots/:botId/me` | The bot's own profile (migrated from `channels/me`) |
 | **Usage** | `GET /v1/bots/:botId/usage` | Per-bot usage + analytics summary |
 | | `GET /v1/bots/:botId/events` | Recent usage events (`?limit=`, default 50, max 200) |
 

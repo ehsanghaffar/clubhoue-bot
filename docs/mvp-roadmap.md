@@ -31,6 +31,10 @@ All 20 steps are complete on branch `refactor/upgrade`. Every step was closed wi
 
 Documentation (spec §31) and the Definition of Done (spec §32) are also complete.
 
+## Post-MVP follow-ups
+
+- **Legacy → `/v1` migration + `/api` deprecation** — ✅ done on `refactor/upgrade`. Legacy capabilities (send/list room messages, accept speaker invite, search/get users, bot profile) now have tenant-scoped `/v1` equivalents via the platform adapter, and `/api` is formally deprecated (RFC 8594 `Deprecation`/`Sunset`/`Link` headers; sunset `2027-02-01`) while remaining functional. See [`docs/api.md`](api.md) for the migration map. Clubhouse-specific endpoints with no adapter equivalent (`get_room_users`, `start-timer`, notifications, `all_users`, `change-profile`) remain legacy-only for now.
+
 ## Definition of Done (spec §32)
 
 The end-to-end flow is implemented and covered by an integration test (`tests/dod-flow.test.ts`):
@@ -46,7 +50,7 @@ The system supports multiple bots and multiple rooms **without process-global mu
 
 ## Testing status
 
-- 141 tests / 19 files (unit + integration + platform + Definition of Done), run with Vitest.
+- 151 tests / 20 files (unit + integration + platform + Definition of Done + legacy-migration/deprecation), run with Vitest.
 - CI enforces typecheck, lint, test, build, and a dependency audit (critical vulnerabilities fail).
 
 ## See also

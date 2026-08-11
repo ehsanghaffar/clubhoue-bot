@@ -248,4 +248,20 @@ export class ClubApiService {
   }
 }
 
+/**
+ * LEGACY COMPATIBILITY BOUNDARY — process-global singleton.
+ *
+ * This instance exists ONLY to preserve the deprecated `/api` surface. It is
+ * mutated exactly once at process startup by `initializeService()`
+ * (`setProfile` + `setAgent`) before any request is served, and is never
+ * mutated from a request handler — per-request identity is passed through the
+ * `token` override argument, not by mutating this instance. As long as that
+ * invariant holds, concurrent legacy requests do not observe each other's
+ * state.
+ *
+ * The modern `/v1` API and the core domain must NEVER depend on this singleton;
+ * they use per-credential `ClubhouseAdapter` instances built from decrypted
+ * credentials. This singleton will be removed when the legacy `/api` surface is
+ * sunset (see `docs/api.md`).
+ */
 export const clubService = new ClubApiService()

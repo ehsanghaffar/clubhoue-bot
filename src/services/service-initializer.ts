@@ -12,6 +12,15 @@ import type { Profile } from '../types/config.js'
 import agent from '../platforms/clubhouse/agent.js'
 import logger from '../utils/logger.js'
 
+/**
+ * Initializes the legacy global `clubService` singleton from `profile.json`.
+ *
+ * LEGACY-ONLY: this runs exactly once during process bootstrap (before the HTTP
+ * server starts serving) and is the ONLY place that mutates `clubService`
+ * state. Request handlers never call `setProfile`/`setAgent`, so concurrent
+ * legacy requests cannot observe each other's mutations. The modern `/v1` API
+ * does not use `clubService` — it builds per-credential adapters.
+ */
 export function initializeService (): void {
   try {
     const profilePath = path.join(process.cwd(), 'profile.json')

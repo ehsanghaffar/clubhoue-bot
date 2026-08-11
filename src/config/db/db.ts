@@ -5,10 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import mongoose from 'mongoose'
-import dotenv from 'dotenv'
 import logger from '../../utils/logger.js'
-
-dotenv.config()
 
 mongoose.set('strictQuery', true)
 
@@ -19,6 +16,10 @@ function normalizeMongoURL (url: string | undefined): string {
   return url.replace('mongodb://localhost', 'mongodb://127.0.0.1')
 }
 
+function redactMongoURL (url: string | undefined): string {
+  return normalizeMongoURL(url).replace(/\/\/.*@/, '//***@')
+}
+
 interface ConnectionParams {
   serverSelectionTimeoutMS: number
   family: number
@@ -27,7 +28,7 @@ interface ConnectionParams {
 const connectDB = async (): Promise<typeof mongoose> => {
   try {
     const mongoURL = normalizeMongoURL(process.env.MONGODB_URL)
-    logger.info('Connecting to MongoDB:', { url: mongoURL.replace(/\/\/.*@/, '//***@') })
+    logger.info('Connecting to MongoDB:', { url: redactMongoURL(mongoURL) })
 
     const connectionParams: ConnectionParams = {
       serverSelectionTimeoutMS: 5000,
@@ -40,7 +41,7 @@ const connectDB = async (): Promise<typeof mongoose> => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     logger.error('Database connection failed:', { error: message })
-    logger.error('Connection URL:', { url: normalizeMongoURL(process.env.MONGODB_URL) })
+    logger.error('Connection URL:', { url: redactMongoURL(process.env.MONGODB_URL) })
     logger.error('Make sure MongoDB is running on 127.0.0.1:27017')
     process.exit(1)
   }

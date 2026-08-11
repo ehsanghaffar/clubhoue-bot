@@ -5,6 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { Router } from 'express'
+import rateLimit from 'express-rate-limit'
 import {
   addProfile,
   changeProfile,
@@ -26,6 +27,19 @@ import {
  * Profile management routes
  */
 const router: Router = Router()
+
+const sensitiveActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: {
+      type: 'RATE_LIMITED',
+      message: 'Too many requests, please try again later.'
+    }
+  }
+})
 
 /**
  * @openapi
@@ -57,7 +71,7 @@ const router: Router = Router()
  *       400:
  *         description: Validation error
  */
-router.post('/add_profile', addProfile)
+router.post('/add_profile', sensitiveActionLimiter, addProfile)
 
 /**
  * @openapi
@@ -81,7 +95,7 @@ router.post('/add_profile', addProfile)
  *       404:
  *         description: Profile not found
  */
-router.post('/change-profile', validateBody(changeProfileSchema), changeProfile)
+router.post('/change-profile', sensitiveActionLimiter, validateBody(changeProfileSchema), changeProfile)
 
 /**
  * @openapi

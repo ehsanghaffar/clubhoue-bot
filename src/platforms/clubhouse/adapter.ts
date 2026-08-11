@@ -118,6 +118,14 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
     }
   }
 
+  async ping (roomId: string): Promise<void> {
+    try {
+      await this.api.activePing({ channel: roomId })
+    } catch (error) {
+      throw this.toAdapterError('ping', error)
+    }
+  }
+
   private toAdapterError (op: string, cause: unknown): AdapterError {
     const message = cause instanceof Error ? cause.message : String(cause)
     logger.error(`Clubhouse adapter ${op} failed`, { error: message })

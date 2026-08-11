@@ -132,6 +132,40 @@ export class BotManager {
     this.runtimes.clear()
   }
 
+  /** Runs a single room sync for a running bot (used by the worker queue). */
+  async syncRoomByBot (botId: string, roomId: string): Promise<number> {
+    const runtime = this.runtimes.get(botId)
+    if (runtime == null) {
+      return 0
+    }
+    const room = await this.deps.rooms.findById(roomId)
+    if (room == null || room.status === 'inactive') {
+      return 0
+    }
+    return await this.deps.roomService.syncRoom(room, runtime.adapter)
+  }
+
+  /** Sends a keep-alive ping for a running bot's room (active-ping job). */
+  async pingRoom (botId: string, roomId: string): Promise<void> {
+    const runtime = this.runtimes.get(botId)
+    if (runtime == null) {
+      return
+    }
+    if (runtime.adapter.ping == null) {
+      return
+    }
+    await runtime.adapter.ping(roomId)
+  }
+
+  /** Invites a user to speak in a running bot's room (speaker-invite job). */
+  async inviteSpeaker (botId: string, roomId: string, userId: string): Promise<void> {
+    const runtime = this.runtimes.get(botId)
+    if (runtime == null) {
+      return
+    }
+    await runtime.adapter.inviteSpeaker(roomId, userId)
+  }
+
   private startRoomLoop (bot: Bot, room: BotRoom, adapter: CommunityPlatformAdapter): void {
     const key = `${bot.id}:${room.id}`
     if (this.loops.has(key)) {

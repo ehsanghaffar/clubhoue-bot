@@ -24,6 +24,8 @@ export interface CommunityPlatformAdapter {
   searchUsers: (query: string) => Promise<User[]>
   inviteSpeaker: (roomId: string, userId: string) => Promise<void>
   acceptSpeakerInvite: (roomId: string) => Promise<void>
+  /** Optional keep-alive ping for platforms that require periodic activity. */
+  ping?: (roomId: string) => Promise<void>
 }
 
 /** Credential material handed to an adapter factory (already decrypted). */

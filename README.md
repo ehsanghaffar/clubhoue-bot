@@ -164,6 +164,24 @@ Configure branch protection on `main`/`develop` to require both jobs as status c
 
 ---
 
+## Documentation
+
+The `docs/` folder describes the implemented architecture:
+
+| Doc | Covers |
+| --- | --- |
+| [`docs/architecture.md`](docs/architecture.md) | System layering, modules, data flow |
+| [`docs/mvp-roadmap.md`](docs/mvp-roadmap.md) | Migration status + Definition of Done |
+| [`docs/api.md`](docs/api.md) | `/v1` and legacy `/api` surfaces |
+| [`docs/bot-lifecycle.md`](docs/bot-lifecycle.md) | Bot start/run/stop lifecycle |
+| [`docs/automation.md`](docs/automation.md) | Event/automation pipeline and rules |
+| [`docs/ai.md`](docs/ai.md) | AI provider, triggers, cooldown |
+| [`docs/platforms.md`](docs/platforms.md) | Platform adapter contract + Clubhouse |
+| [`docs/deployment.md`](docs/deployment.md) | Local, Docker, worker, CI |
+| [`docs/security.md`](docs/security.md) | Auth, tenant isolation, encryption |
+
+---
+
 ## Project Structure
 
 ```

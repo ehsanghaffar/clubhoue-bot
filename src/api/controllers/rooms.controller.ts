@@ -21,12 +21,20 @@ interface RoomBody {
   settings?: Partial<BotRoomSettings>
 }
 
+/** Shape produced by the Joi validation middleware (see validation/messages.schema.ts). */
+interface SendMessageBody {
+  message?: string
+}
+
 export interface RoomsController {
   create: RequestHandler
   list: RequestHandler
   get: RequestHandler
   join: RequestHandler
   leave: RequestHandler
+  sendMessage: RequestHandler
+  listMessages: RequestHandler
+  acceptInvite: RequestHandler
 }
 
 export const createRoomsController = (deps: RoomsControllerDeps): RoomsController => {
@@ -121,5 +129,72 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     }
   }
 
-  return { create, list, get, join, leave }
+  /** Migrated from legacy POST /api/channels/send-room-msg. */
+  const sendMessage: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const bot = req.bot
+      const room = req.room
+      if (bot == null || room == null) {
+        next(createNotFoundError('Room not found'))
+        return
+      }
+      const body = req.body as SendMessageBody
+      const adapter = await deps.botService.createAdapter(bot)
+      await adapter.sendMessage(room.externalRoomId, body.message ?? '')
+      res.json({ data: { ok: true } })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('No active credential')) {
+        next(createBadRequestError('Bot has no active credential'))
+        return
+      }
+      next(err)
+    }
+  }
+
+  /** Migrated from legacy POST /api/channels/room-msgs. */
+  const listMessages: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const bot = req.bot
+      const room = req.room
+      if (bot == null || room == null) {
+        next(createNotFoundError('Room not found'))
+        return
+      }
+      const adapter = await deps.botService.createAdapter(bot)
+      const messages = await adapter.getMessages(room.externalRoomId)
+      res.json({ data: messages })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('No active credential')) {
+        next(createBadRequestError('Bot has no active credential'))
+        return
+      }
+      next(err)
+    }
+  }
+
+  /** Migrated from legacy POST /api/channels/accept_invite + /api/profiles/accept_invite. */
+  const acceptInvite: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const bot = req.bot
+      const room = req.room
+      if (bot == null || room == null) {
+        next(createNotFoundError('Room not found'))
+        return
+      }
+      const adapter = await deps.botService.createAdapter(bot)
+      await adapter.acceptSpeakerInvite(room.externalRoomId)
+      res.json({ data: { ok: true } })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('No active credential')) {
+        next(createBadRequestError('Bot has no active credential'))
+        return
+      }
+      next(err)
+    }
+  }
+
+  return { create, list, get, join, leave, sendMessage, listMessages, acceptInvite }
 }

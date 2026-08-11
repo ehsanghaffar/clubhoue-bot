@@ -34,6 +34,7 @@ export interface BotsController {
   remove: RequestHandler
   start: RequestHandler
   stop: RequestHandler
+  me: RequestHandler
 }
 
 export const createBotsController = (deps: BotsControllerDeps): BotsController => {
@@ -148,5 +149,31 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
     }
   }
 
-  return { list, create, get, update, remove, start, stop }
+  /** Migrated from legacy POST /api/channels/me — the bot's own profile. */
+  const me: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const bot = req.bot
+      if (bot == null) {
+        next(createNotFoundError('Bot not found'))
+        return
+      }
+      const externalId = await deps.botService.getBotExternalUserId(bot.id)
+      if (externalId == null) {
+        next(createBadRequestError('Bot has no active credential'))
+        return
+      }
+      const adapter = await deps.botService.createAdapter(bot)
+      const user = await adapter.getUser(externalId)
+      res.json({ data: user })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('No active credential')) {
+        next(createBadRequestError('Bot has no active credential'))
+        return
+      }
+      next(err)
+    }
+  }
+
+  return { list, create, get, update, remove, start, stop, me }
 }

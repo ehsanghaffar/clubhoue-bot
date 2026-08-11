@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import express, { type Express, type Request, type Response } from 'express'
+import express, { type Express, type Request, type RequestHandler, type Response } from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
@@ -13,6 +13,7 @@ import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middlewares/error-handler.js'
 import requireApiKey from './middlewares/api-key.js'
 import routes from './routes/routes.js'
+import logger from './utils/logger.js'
 import { createV1Router } from './api/routes/v1.routes.js'
 import { botService, botManager } from './core/bots/index.js'
 import { credentialService } from './core/credentials/credential.service.js'
@@ -41,6 +42,26 @@ export interface AppOptions {
   analyticsService?: AnalyticsService
   tenantService?: TenantService
 }
+
+/**
+ * Legacy /api deprecation window (RFC 8594). The /api surface keeps working
+ * during the migration; consumers should move to the tenant-scoped /v1 API.
+ */
+const API_DEPRECATED_SINCE = '2026-08-11T00:00:00Z'
+const API_SUNSET_DATE = '2027-02-01'
+
+/**
+ * Tags every legacy /api response as deprecated so existing consumers get an
+ * explicit signal to migrate to /v1 without breaking them mid-transition.
+ */
+const deprecateLegacyApi: RequestHandler = (req, res, next): void => {
+  res.setHeader('Deprecation', new Date(API_DEPRECATED_SINCE).toUTCString())
+  res.setHeader('Sunset', API_SUNSET_DATE)
+  res.setHeader('Link', '</v1>; rel="successor-version"')
+  next()
+}
+
+let legacyDeprecationLogged = false
 
 const buildSwaggerSpec = (): object => {
   const port: number = parseInt(process.env.PORT || '4000', 10)
@@ -121,7 +142,14 @@ export const createApp = (options: AppOptions = {}): Express => {
   })
 
   // Legacy Clubhouse API. Authentication is enforced globally so every route
-  // (including profile/token management) is protected by the API key.
+  // (including profile/token management) is protected by the API key. The
+  // surface is deprecated (RFC 8594 headers) but kept functional during the
+  // migration window — new consumers should use the /v1 API.
+  if (!legacyDeprecationLogged) {
+    legacyDeprecationLogged = true
+    logger.warn('Legacy /api is deprecated. Migrate consumers to /v1 before the sunset date.')
+  }
+  app.use('/api', deprecateLegacyApi)
   app.use('/api', apiLimiter)
   app.use('/api', requireApiKey, routes)
 

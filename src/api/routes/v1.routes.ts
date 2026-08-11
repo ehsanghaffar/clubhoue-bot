@@ -23,9 +23,12 @@ import { createBotsController } from '../controllers/bots.controller.js'
 import { createCredentialsController } from '../controllers/credentials.controller.js'
 import { createRoomsController } from '../controllers/rooms.controller.js'
 import { createUsageController } from '../controllers/usage.controller.js'
+import { createUsersController } from '../controllers/users.controller.js'
 import { createBotSchema, updateBotSchema } from '../validation/bots.schema.js'
 import { createCredentialSchema } from '../validation/credentials.schema.js'
 import { createRoomSchema } from '../validation/rooms.schema.js'
+import { sendMessageSchema } from '../validation/messages.schema.js'
+import { searchUsersSchema } from '../validation/users.schema.js'
 
 export interface V1RouterDeps {
   botService: BotService
@@ -49,6 +52,7 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
   const credentials = createCredentialsController({ credentialService: deps.credentialService })
   const rooms = createRoomsController({ roomService: deps.roomService, botService: deps.botService })
   const usage = createUsageController({ usageService: deps.usageService, analyticsService: deps.analyticsService })
+  const users = createUsersController({ botService: deps.botService })
 
   const botLoader = async (id: string, tenantId: string): Promise<Bot | null> => {
     return await deps.botService.getByIdAndTenant(id, tenantId)
@@ -87,6 +91,16 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
   router.get('/bots/:botId/rooms/:roomId', requireBot(botLoader), requireRoom(roomLoader), rooms.get)
   router.post('/bots/:botId/rooms/:roomId/join', requireBot(botLoader), requireRoom(roomLoader), rooms.join)
   router.post('/bots/:botId/rooms/:roomId/leave', requireBot(botLoader), requireRoom(roomLoader), rooms.leave)
+
+  // Messages + speaker invite (migrated legacy channel operations)
+  router.post('/bots/:botId/rooms/:roomId/messages', requireBot(botLoader), requireRoom(roomLoader), validateBody(sendMessageSchema), rooms.sendMessage)
+  router.get('/bots/:botId/rooms/:roomId/messages', requireBot(botLoader), requireRoom(roomLoader), rooms.listMessages)
+  router.post('/bots/:botId/rooms/:roomId/accept-invite', requireBot(botLoader), requireRoom(roomLoader), rooms.acceptInvite)
+
+  // Users (migrated legacy profile/user search + bot profile)
+  router.post('/bots/:botId/users/search', requireBot(botLoader), validateBody(searchUsersSchema), users.search)
+  router.get('/bots/:botId/users/:userId', requireBot(botLoader), users.get)
+  router.get('/bots/:botId/me', requireBot(botLoader), bots.me)
 
   // Usage + events
   router.get('/bots/:botId/usage', requireBot(botLoader), usage.summary)

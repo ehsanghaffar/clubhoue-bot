@@ -19,13 +19,19 @@ export type JobName =
   | typeof JOB_ROOM_SYNC
   | typeof JOB_SPEAKER_INVITE
 
+/**
+ * Every job payload carries its full tenant/bot/room scope. `tenantId` is
+ * required: a handler must never fabricate tenant identity (see handlers.ts).
+ */
 export interface ProcessMessageJob {
+  tenantId: string
   botId: string
   roomId: string
   messageId: string
 }
 
 export interface AiResponseJob {
+  tenantId: string
   botId: string
   roomId: string
   messageId: string
@@ -34,16 +40,19 @@ export interface AiResponseJob {
 }
 
 export interface ActivePingJob {
+  tenantId: string
   botId: string
   roomId: string
 }
 
 export interface RoomSyncJob {
+  tenantId: string
   botId: string
   roomId: string
 }
 
 export interface SpeakerInviteJob {
+  tenantId: string
   botId: string
   roomId: string
   userId: string

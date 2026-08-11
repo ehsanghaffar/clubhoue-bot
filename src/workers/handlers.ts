@@ -35,10 +35,23 @@ export type JobHandlerMap = Record<JobName, JobHandler>
 
 const asPayload = <T>(job: QueueJob): T => job.data as T
 
+/**
+ * Every job must carry an explicit tenant scope. A handler must never invent
+ * tenant identity (e.g. `tenantId: ''`): if the context is missing or empty we
+ * fail the job so the error surfaces instead of processing under a fabricated
+ * tenant.
+ */
+const requireTenantId = (tenantId: string | undefined): string => {
+  if (tenantId == null || tenantId === '') {
+    throw new Error('Job is missing required tenantId; refusing to fabricate tenant context')
+  }
+  return tenantId
+}
+
 /** Builds a synthetic event for AI decisions that arrive via the queue. */
-const buildEvent = (data: { botId: string, roomId: string }): CommunityEvent => ({
+const buildEvent = (data: { tenantId: string, botId: string, roomId: string }): CommunityEvent => ({
   id: `job-${Date.now()}`,
-  tenantId: '',
+  tenantId: requireTenantId(data.tenantId),
   botId: data.botId,
   roomId: data.roomId,
   platform: 'clubhouse',
@@ -54,7 +67,8 @@ const buildEvent = (data: { botId: string, roomId: string }): CommunityEvent => 
 export const createHandlers = (deps: WorkerDeps): JobHandlerMap => ({
   [JOB_PROCESS_MESSAGE]: async (job) => {
     const data = asPayload<ProcessMessageJob>(job)
-    logger.info('Processing message job', { botId: data.botId, roomId: data.roomId, messageId: data.messageId })
+    requireTenantId(data.tenantId)
+    logger.info('Processing message job', { tenantId: data.tenantId, botId: data.botId, roomId: data.roomId, messageId: data.messageId })
     // Message ingestion is handled by the room sync pipeline; re-syncing the
     // room pulls in and deduplicates the latest messages.
     await deps.botManager.syncRoomByBot(data.botId, data.roomId)
@@ -80,16 +94,19 @@ export const createHandlers = (deps: WorkerDeps): JobHandlerMap => ({
 
   [JOB_ACTIVE_PING]: async (job) => {
     const data = asPayload<ActivePingJob>(job)
+    requireTenantId(data.tenantId)
     await deps.botManager.pingRoom(data.botId, data.roomId)
   },
 
   [JOB_ROOM_SYNC]: async (job) => {
     const data = asPayload<RoomSyncJob>(job)
+    requireTenantId(data.tenantId)
     await deps.botManager.syncRoomByBot(data.botId, data.roomId)
   },
 
   [JOB_SPEAKER_INVITE]: async (job) => {
     const data = asPayload<SpeakerInviteJob>(job)
+    requireTenantId(data.tenantId)
     await deps.botManager.inviteSpeaker(data.botId, data.roomId, data.userId)
   }
 })

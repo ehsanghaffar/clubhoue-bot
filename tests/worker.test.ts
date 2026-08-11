@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryQueue } from '../src/infrastructure/queue/in-memory-queue.js'
 import { Worker } from '../src/workers/worker.js'
 import { createHandlers, type WorkerDeps } from '../src/workers/handlers.js'
-import { JOB_ACTIVE_PING, JOB_ROOM_SYNC, JOB_SPEAKER_INVITE } from '../src/workers/jobs.js'
+import { JOB_ACTIVE_PING, JOB_AI_RESPONSE, JOB_ROOM_SYNC, JOB_SPEAKER_INVITE } from '../src/workers/jobs.js'
+import type { QueueJob } from '../src/infrastructure/queue/queue.js'
 import type { BotManager } from '../src/core/bots/bot-manager.js'
 import type { AiService } from '../src/core/ai/ai.service.js'
 
@@ -94,7 +95,7 @@ describe('Worker', () => {
     const worker = new Worker(queue, createHandlers(deps))
     worker.start()
 
-    await queue.enqueue(JOB_ROOM_SYNC, { botId: 'bot-1', roomId: 'room-1' })
+    await queue.enqueue(JOB_ROOM_SYNC, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
     await waitFor(() => (botManager.syncRoomByBot as ReturnType<typeof vi.fn>).mock.calls.length === 1)
     expect(botManager.syncRoomByBot).toHaveBeenCalledWith('bot-1', 'room-1')
     worker.stop()
@@ -104,8 +105,8 @@ describe('Worker', () => {
     const worker = new Worker(queue, createHandlers(deps))
     worker.start()
 
-    await queue.enqueue(JOB_SPEAKER_INVITE, { botId: 'bot-1', roomId: 'room-1', userId: 'u-1' })
-    await queue.enqueue(JOB_ACTIVE_PING, { botId: 'bot-1', roomId: 'room-1' })
+    await queue.enqueue(JOB_SPEAKER_INVITE, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', userId: 'u-1' })
+    await queue.enqueue(JOB_ACTIVE_PING, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
     await waitFor(() => (botManager.inviteSpeaker as ReturnType<typeof vi.fn>).mock.calls.length === 1)
     expect(botManager.inviteSpeaker).toHaveBeenCalledWith('bot-1', 'room-1', 'u-1')
     expect(botManager.pingRoom).toHaveBeenCalledWith('bot-1', 'room-1')
@@ -120,5 +121,21 @@ describe('Worker', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(botManager.syncRoomByBot).not.toHaveBeenCalled()
     worker.stop()
+  })
+
+  it('fails a job that is missing tenant context instead of fabricating it (F-09)', async () => {
+    const handlers = createHandlers(deps)
+    const job = {
+      id: 'job-x',
+      name: JOB_AI_RESPONSE,
+      data: { botId: 'bot-1', roomId: 'room-1', messageId: 'm-1', userId: 'u-1', content: 'hello' },
+      attempts: 0,
+      maxAttempts: 1,
+      createdAt: new Date()
+    } as unknown as QueueJob
+
+    // A handler must never process a job without a tenant scope; it fails loudly.
+    await expect(handlers[JOB_AI_RESPONSE](job)).rejects.toThrow(/tenantId/)
+    expect(botManager.resolveContext).not.toHaveBeenCalled()
   })
 })

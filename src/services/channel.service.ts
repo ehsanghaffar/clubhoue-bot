@@ -6,7 +6,8 @@
  */
 import type { ChannelListResponse, JoinChannelResponse, SendMessageResponse } from '../types/services.js'
 import type { Profile } from '../types/config.js'
-import { clubService, ClubApiService } from './club-api.service.js'
+import { clubService, type ClubApiService } from './club-api.service.js'
+import { constants } from '../config/index.js'
 import logger from '../utils/logger.js'
 
 export interface ChannelMessage {
@@ -17,8 +18,18 @@ export interface ChannelMessage {
   }
 }
 
+const INVITE_ALLOW_LIST = new Set<string>(
+  (process.env.INVITE_ALLOW_LIST ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+)
+
+const INVITE_REQUEST_KEYWORDS = /invite( me)?|stage|speaker|استیج|اجازه|بالا ببر|برو بالا/i
+
 export class ChannelService {
   private readonly clubService: ClubApiService
+  private readonly invitedUsers = new Set<string>()
 
   constructor (clubServiceInstance?: ClubApiService) {
     this.clubService = clubServiceInstance ?? clubService
@@ -51,7 +62,7 @@ export class ChannelService {
       if (result) {
         setTimeout(() => {
           void this.handleInviteRequests(channelId)
-        }, 3000)
+        }, constants.TIME.THREE_SECONDS)
       }
 
       return result
@@ -63,23 +74,53 @@ export class ChannelService {
 
   async handleInviteRequests (channelId: string): Promise<void> {
     try {
+      if (INVITE_ALLOW_LIST.size === 0) {
+        logger.warn('Speaker invites are disabled: INVITE_ALLOW_LIST is not configured', {
+          channelId
+        })
+        return
+      }
+
       const messages = await this.fetchChannelMessages(channelId)
       if (messages.length > 0) {
-        logger.info('Processing invites for channel:', { channelId })
+        logger.info('Processing invite requests for channel:', { channelId })
         for (const invite of messages) {
-          if (invite.user_profile?.user_id) {
-            logger.info('Inviting user to speakers:', { userId: invite.user_profile.user_id })
-            const result = await this.clubService.inviteToSpeakers({
-              channel: channelId,
-              user_id: invite.user_profile.user_id
-            })
-            logger.debug('Invite result:', { result })
-          }
+          await this.inviteIfRequested(channelId, invite)
         }
       }
     } catch (error) {
       logger.error('Error handling invite requests:', { error })
     }
+  }
+
+  private async inviteIfRequested (channelId: string, message: ChannelMessage): Promise<void> {
+    const userId = String(message.user_profile?.user_id ?? '')
+    if (!userId) {
+      return
+    }
+
+    const dedupeKey = `${channelId}:${userId}`
+    if (this.invitedUsers.has(dedupeKey)) {
+      logger.debug('Skipping user already invited this session:', { channelId, userId })
+      return
+    }
+
+    if (!INVITE_ALLOW_LIST.has(userId)) {
+      logger.debug('Skipping user not on the invite allow list:', { channelId, userId })
+      return
+    }
+
+    if (message.message == null || !INVITE_REQUEST_KEYWORDS.test(message.message)) {
+      logger.debug('Skipping message without an invite request:', { channelId, userId })
+      return
+    }
+
+    this.invitedUsers.add(dedupeKey)
+    const result = await this.clubService.inviteToSpeakers({
+      channel: channelId,
+      user_id: userId
+    })
+    logger.debug('Invite result:', { result })
   }
 
   async getChannelFeed (): Promise<ChannelListResponse> {

@@ -55,6 +55,7 @@ export interface LeaveChannelOptions {
 export interface GetChannelMessagesOptions {
   channel: string
   order?: number
+  token?: string
 }
 
 export interface SendChannelMessageOptions {
@@ -76,6 +77,7 @@ export interface SearchUsersOptions {
 
 export interface AcceptSpeakerInviteOptions {
   channel: string
+  token?: string
 }
 
 export interface InviteToSpeakersOptions {

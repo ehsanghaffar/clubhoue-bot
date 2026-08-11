@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Request, Response, NextFunction } from 'express'
+import { type Request, type Response, type NextFunction } from 'express'
 import { clubService } from '../services/club-api.service.js'
 import { createInternalError } from '../utils/errors.js'
 import logger from '../utils/logger.js'
@@ -28,11 +28,12 @@ export const getChannelInfo = async (
       return
     }
 
-    // Switching the token here intentionally makes subsequent calls act as the
-    // selected client until the active profile is changed again.
-    clubService.setProfileToken(client.token)
-
-    const channelInfo = await clubService.getChannelMessages({ channel })
+    // Act as the selected client for this request only, without mutating
+    // shared service state.
+    const channelInfo = await clubService.getChannelMessages({
+      channel,
+      token: client.token
+    })
     res.send(channelInfo)
   } catch (err) {
     logger.error('Error getting channel info:', { error: err })

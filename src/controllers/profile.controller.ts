@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { Request, Response, NextFunction } from 'express'
+import { type Request, type Response, type NextFunction } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -19,7 +19,6 @@ import logger from '../utils/logger.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const addProfileSchema = Joi.object({
-  // token a4b1cbc6e5e641331cb52d0fe9b2475156a4795c
   token: Joi.string(),
   name: Joi.string().min(3).max(50).required()
 })
@@ -37,13 +36,7 @@ interface ProfileFile {
 const getUserToken = async (
   name: string
 ): Promise<{ token: string, name?: string } | null> => {
-  try {
-    const user = await ValidToken.findOne({ name }).lean()
-    return user
-  } catch (error) {
-    logger.error('Error getting user token:', { error })
-    return null
-  }
+  return await ValidToken.findOne({ name }).lean()
 }
 
 export const addProfile = async (
@@ -53,7 +46,7 @@ export const addProfile = async (
 ): Promise<void> => {
   const { error, value } = addProfileSchema.validate(req.body)
   if (error != null) {
-    return next(createValidationError(error.details[0].message))
+    next(createValidationError(error.details[0].message)); return
   }
 
   try {
@@ -64,7 +57,7 @@ export const addProfile = async (
     const dataToSave = await data.save()
     res.status(constants.HTTP_STATUS.OK).json(dataToSave)
   } catch (err) {
-    next(createInternalError('Failed to save profile'))
+    next(err as Error)
   }
 }
 
@@ -89,15 +82,6 @@ export const changeProfile = async (
     if (ctx.tokens != null) ctx.tokens.auth = token
     if (ctx._debug != null) ctx._debug.auth_token = token
     fs.writeFileSync(profileLoc, JSON.stringify(ctx))
-
-    // Keep in-memory service state in sync so subsequent API calls use the new token.
-    if (token) {
-      try {
-        clubService.setProfileToken(token)
-      } catch (error) {
-        logger.error('Failed to sync profile token to service:', { error })
-      }
-    }
 
     res.send(ctx)
   } catch (err) {
@@ -138,15 +122,12 @@ export const acceptInvite = async (
       return
     }
 
-    // Switch the active token in the service layer, not just a local variable,
-    // so the invite is accepted with the requested user's identity.
-    try {
-      clubService.setProfileToken(user.token)
-    } catch (error) {
-      logger.error('Failed to switch profile token for accept invite:', { error })
-    }
-
-    const result = await clubService.acceptSpeakerInvite({ channel })
+    // Act as the requested user's identity for this call only, without
+    // mutating shared service state.
+    const result = await clubService.acceptSpeakerInvite({
+      channel,
+      token: user.token
+    })
     res.send(result)
   } catch (error) {
     logger.error('Error accepting invite:', { error })

@@ -183,7 +183,7 @@ cl-api/
 │   │   └── pingManager.ts      # Active-ping loop per channel
 │   └── validation/
 │       └── schemas.ts          # Joi schemas for every route body
-├── tests/                      # Vitest suite (api-key, error-handler, environment)
+├── tests/                      # Vitest suite (unit + integration + offline platform tests)
 ├── tools/                      # Dev utilities (loc)
 ├── logs/                       # Winston output (error.log, combined.log)
 ├── profile.json                # Clubhouse account credentials (token, device) — gitignored
@@ -351,6 +351,13 @@ pnpm run lint        # ESLint
 pnpm test            # Vitest suite
 pnpm run build       # compile to dist/
 ```
+
+Test coverage includes unit tests for the core services (bots, rooms,
+credentials, usage, automation rules, message deduplication, credential
+encryption), API middleware (authorization, error handler, API key), the
+automation pipeline end-to-end (event bus → processor → rules → actions →
+usage), and the Clubhouse platform adapter using a mocked HTTP transport — no
+tests depend on the live Clubhouse API.
 
 ---
 

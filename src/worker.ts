@@ -4,55 +4,31 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import dotenv from 'dotenv'
 import logger from './utils/logger.js'
-import db from './config/db/db.js'
-import { getMissingEnvVars } from './config/environment.js'
-import { initializeService } from './services/service-initializer.js'
-import { tenantService } from './core/tenants/tenant.service.js'
-import { configureEventPipeline } from './core/startup.js'
-import { botManager } from './core/bots/index.js'
-import { worker } from './workers/index.js'
-
-dotenv.config()
 
 /**
- * Standalone worker process (production path). Boots the same core pipeline
- * as the API but only runs background work — no HTTP server. The MVP still
- * embeds the worker in the API process; this entry becomes the default when a
- * persistent queue (Redis/BullMQ) is introduced (see spec §18).
+ * Standalone worker entrypoint — FUTURE INFRASTRUCTURE (spec §18).
+ *
+ * Intentionally NOT wired in the MVP. The single-process BotManager + room-loop
+ * architecture owned by `src/server.ts` is the source of truth: the API process
+ * is the ONLY process that boots a live bot runtime.
+ *
+ * Do NOT boot live bots or start queue processing from this entry — doing so
+ * would create a second live bot runtime (duplicate room loops, welcomes,
+ * invites, and usage accounting). When the Scheduler → Queue → Worker
+ * architecture is implemented, this entry becomes the production runner and the
+ * API process stops owning live bots.
+ *
+ * Future:
+ *   Scheduler → Queue (Redis/BullMQ) → Worker
  */
-const validateEnvironment = (): void => {
-  const missing = getMissingEnvVars()
-  if (missing.length > 0) {
-    logger.error('Missing required environment variable(s):', { missing })
-    process.exit(1)
-  }
-}
+logger.warn(
+  'Worker entry is future infrastructure and is NOT active in the MVP. ' +
+    'Live bot execution is owned by the API process (src/server.ts).'
+)
 
-const bootstrap = async (): Promise<void> => {
-  try {
-    validateEnvironment()
-    await db()
-    await tenantService.ensureDefaultTenant()
-    initializeService()
-    configureEventPipeline()
-    await botManager.startAll()
-    worker.start()
+void (async () => {
+  logger.info('Worker (future) exiting — no background work configured for the MVP.')
+})()
 
-    const shutdown = (signal: string): void => {
-      logger.info('Worker shutting down', { signal })
-      worker.stop()
-      botManager.stopAll()
-      process.exit(0)
-    }
-    process.on('SIGINT', () => { shutdown('SIGINT') })
-    process.on('SIGTERM', () => { shutdown('SIGTERM') })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err)
-    logger.error('Failed to start worker:', { error: message })
-    process.exit(1)
-  }
-}
-
-void bootstrap()
+export {}

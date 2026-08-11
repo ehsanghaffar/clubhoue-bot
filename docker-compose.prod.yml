@@ -1,12 +1,19 @@
-# Production deployment: api + worker + mongo + redis (spec §26).
+# Production deployment: api + mongo (spec §26).
 #
 # Usage:
 #   cp .env.example .env.production   # fill in real secrets, then:
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
-# The API and worker run the same image with different entrypoints. MongoDB and
-# Redis are managed dependencies with healthchecks; the app services wait for
-# their dependencies to be healthy before starting.
+# The MVP runs a SINGLE runtime: the `api` service boots the HTTP server and is
+# the ONLY process that owns a live BotManager runtime (bot room loops,
+# automation, AI, usage). There is deliberately NO separate worker service — the
+# standalone worker entry (`src/worker.ts`) is future infrastructure
+# (Scheduler -> Queue -> Worker) and must not run alongside the API in this MVP.
+# Redis is likewise future infrastructure (Redis-backed queue / dedup upgrade
+# path) and is not provisioned here because nothing in the MVP uses it.
+#
+# MongoDB is a managed dependency with a healthcheck; the API waits for it to
+# be healthy before starting.
 
 services:
     api:
@@ -19,11 +26,8 @@ services:
         environment:
             - NODE_ENV=production
             - MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse
-            - REDIS_URL=redis://clubhouse_redis:6379
         depends_on:
             mongo:
-                condition: service_healthy
-            redis:
                 condition: service_healthy
         ports:
             - "4000:4000"
@@ -33,26 +37,6 @@ services:
             timeout: 3s
             retries: 3
             start_period: 10s
-        networks:
-            - clubhouse
-
-    worker:
-        build: .
-        image: clubhouse-full-api:prod
-        container_name: clubhouse_worker
-        restart: unless-stopped
-        init: true
-        env_file: .env.production
-        environment:
-            - NODE_ENV=production
-            - MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse
-            - REDIS_URL=redis://clubhouse_redis:6379
-        depends_on:
-            mongo:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
-        command: ["node", "dist/worker.js"]
         networks:
             - clubhouse
 
@@ -71,23 +55,8 @@ services:
         networks:
             - clubhouse
 
-    redis:
-        image: redis:7-alpine
-        container_name: clubhouse_redis
-        restart: unless-stopped
-        volumes:
-            - redis_data:/data
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 30s
-            timeout: 3s
-            retries: 5
-        networks:
-            - clubhouse
-
 volumes:
     mongo_data:
-    redis_data:
 
 networks:
     clubhouse:

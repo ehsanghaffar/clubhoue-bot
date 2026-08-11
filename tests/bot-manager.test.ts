@@ -109,4 +109,18 @@ describe('BotManager', () => {
     await botManager.startAll()
     expect((await botRepo.findById(bot.id))?.status).toBe('active')
   })
+
+  it('startBot is idempotent: no duplicate joins on repeated starts (F-01)', async () => {
+    const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+    await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'ch_abc' })
+
+    await botManager.startBot(bot.id)
+    const joinsAfterFirst = (adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length
+    await botManager.startBot(bot.id)
+
+    // The second start must not re-join already-active rooms or create a
+    // second runtime; the bot stays active exactly once.
+    expect((await botRepo.findById(bot.id))?.status).toBe('active')
+    expect((adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length).toBe(joinsAfterFirst)
+  })
 })

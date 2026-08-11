@@ -4,6 +4,16 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
+/**
+ * Periodic background-job scheduler — FUTURE INFRASTRUCTURE (spec §18).
+ *
+ * Intentionally NOT active in the MVP. The single-process BotManager + room-loop
+ * architecture in `src/server.ts` is the source of truth; the scheduler is NOT
+ * started in any production code path and its enqueue methods are placeholders.
+ *
+ * Future:
+ *   Scheduler → Queue (Redis/BullMQ) → Worker
+ */
 import type { JobQueue } from '../infrastructure/queue/queue.js'
 import {
   JOB_ACTIVE_PING,

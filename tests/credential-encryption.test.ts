@@ -59,3 +59,36 @@ describe('credential-encryption (aes-256-gcm)', () => {
     expect(() => decryptSecret(envelope)).toThrow()
   })
 })
+
+describe('credential-encryption production key enforcement (F-05)', () => {
+  const originalNodeEnv = process.env.NODE_ENV
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv
+    delete process.env.CREDENTIAL_ENCRYPTION_KEY
+    resetEncryptionKeyCache()
+  })
+
+  it('throws in production when CREDENTIAL_ENCRYPTION_KEY is missing', () => {
+    process.env.NODE_ENV = 'production'
+    delete process.env.CREDENTIAL_ENCRYPTION_KEY
+    resetEncryptionKeyCache()
+    expect(() => encryptSecret('secret')).toThrow(/CREDENTIAL_ENCRYPTION_KEY/)
+  })
+
+  it('works in production when a valid key is set', () => {
+    process.env.NODE_ENV = 'production'
+    process.env.CREDENTIAL_ENCRYPTION_KEY = 'c'.repeat(64)
+    resetEncryptionKeyCache()
+    const envelope = encryptSecret('prod-secret')
+    expect(decryptSecret(envelope)).toBe('prod-secret')
+  })
+
+  it('allows the development-only fallback outside production', () => {
+    process.env.NODE_ENV = 'development'
+    delete process.env.CREDENTIAL_ENCRYPTION_KEY
+    resetEncryptionKeyCache()
+    const envelope = encryptSecret('dev-secret')
+    expect(decryptSecret(envelope)).toBe('dev-secret')
+  })
+})

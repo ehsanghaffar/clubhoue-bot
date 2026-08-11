@@ -32,6 +32,16 @@ const getEncryptionKey = (): Buffer => {
   const raw = process.env.CREDENTIAL_ENCRYPTION_KEY
   let key: Buffer
   if (raw == null || raw === '') {
+    if (process.env.NODE_ENV === 'production') {
+      // Production must never silently fall back to a known development key.
+      // Failing loudly here (and at startup via getMissingEnvVars) prevents
+      // credentials from being encrypted with a publicly-known key.
+      throw new Error(
+        'CREDENTIAL_ENCRYPTION_KEY is required in production. Set it before ' +
+          'starting the service. Losing the key makes encrypted credentials ' +
+          'unrecoverable, so a missing key fails startup instead of falling back.'
+      )
+    }
     logger.warn(
       'CREDENTIAL_ENCRYPTION_KEY is not set; using a development-only key. ' +
         'Set CREDENTIAL_ENCRYPTION_KEY in production.'

@@ -37,6 +37,15 @@ export interface UsageEventCreateInput {
   meta?: Record<string, unknown>
 }
 
+/**
+ * Minimal recording contract used by subsystems (AI, automation) that emit
+ * usage from inside their own hot paths without depending on the full
+ * `UsageService`. `UsageService` satisfies this interface.
+ */
+export interface UsageRecorder {
+  record: (input: UsageEventCreateInput) => Promise<UsageEvent>
+}
+
 export interface UsageCounts {
   messages: number
   aiResponses: number

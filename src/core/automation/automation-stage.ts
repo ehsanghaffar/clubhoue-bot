@@ -8,6 +8,7 @@ import type { EventStageHandler } from '../events/event-processor.js'
 import type { CommunityEvent } from '../events/event.types.js'
 import type { RuleContext } from './automation.types.js'
 import type { AutomationEngine } from './rule-engine.js'
+import type { UsageRecorder } from '../usage/usage.types.js'
 import logger from '../../utils/logger.js'
 
 const AUTOMATION_EVENT_TYPES = new Set(['user.joined', 'message.created', 'speaker.requested'])
@@ -16,6 +17,8 @@ export interface AutomationStageDeps {
   engine: AutomationEngine
   /** Resolves the rule context (bot + room + adapter) for a published event. */
   resolveContext: (event: CommunityEvent) => Promise<RuleContext | null>
+  /** Optional usage recorder for automation_triggered telemetry. */
+  usage?: UsageRecorder
 }
 
 /**
@@ -42,6 +45,15 @@ export class AutomationStage implements EventStageHandler {
     if (context == null) {
       return
     }
-    await this.deps.engine.evaluate(event, context)
+    const results = await this.deps.engine.evaluate(event, context)
+    if (results.length > 0 && this.deps.usage != null) {
+      await this.deps.usage.record({
+        tenantId: event.tenantId,
+        botId: event.botId,
+        roomId: event.roomId,
+        type: 'automation_triggered',
+        meta: { ruleIds: results.map((r) => r.ruleId) }
+      })
+    }
   }
 }

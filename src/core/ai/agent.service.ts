@@ -7,9 +7,12 @@
 import type { AiRunner } from '../automation/rules/ai.rule.js'
 import type { AiService } from './ai.service.js'
 import type { MessageCreatedPayload } from '../events/event.types.js'
+import type { UsageRecorder } from '../usage/usage.types.js'
 
 export interface AgentServiceDeps {
   ai: AiService
+  /** Optional usage recorder for ai_request / ai_response telemetry. */
+  usage?: UsageRecorder
 }
 
 /**
@@ -34,12 +37,21 @@ export class AgentService {
         return null
       }
 
+      const usageInput = {
+        tenantId: event.tenantId,
+        botId: context.bot.id,
+        roomId: context.room.id
+      }
+      await this.deps.usage?.record({ ...usageInput, type: 'ai_request' as const })
+
       const response = await this.deps.ai.generateResponse(
         context.bot,
         payload.username ?? payload.userId,
         payload.content
       )
       this.deps.ai.markResponded(context.bot, context.room.id)
+
+      await this.deps.usage?.record({ ...usageInput, type: 'ai_response' as const })
       return response.content
     }
   }

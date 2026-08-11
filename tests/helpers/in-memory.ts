@@ -18,6 +18,8 @@ import type { RoomRepository, RoomUpdateInput } from '../../src/core/rooms/room.
 import type { RoomMemberRepository, RoomMemberSeenResult } from '../../src/core/rooms/room-member.repository.js'
 import type { BotCredential, BotCredentialCreateInput } from '../../src/core/credentials/credential.types.js'
 import type { CredentialRepository } from '../../src/core/credentials/credential.repository.js'
+import type { UsageEvent, UsageEventCreateInput, UsageSummary, UsageType } from '../../src/core/usage/usage.types.js'
+import type { UsageRepository } from '../../src/core/usage/usage.repository.js'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -151,15 +153,29 @@ export class InMemoryRoomRepository implements RoomRepository {
 }
 
 export class InMemoryRoomMemberRepository implements RoomMemberRepository {
-  private readonly members = new Set<string>()
+  private readonly byRoom = new Map<string, Set<string>>()
 
   async ensureSeen (roomId: string, userId: string, _displayName?: string): Promise<RoomMemberSeenResult> {
-    const key = `${roomId}:${userId}`
-    if (this.members.has(key)) {
+    let users = this.byRoom.get(roomId)
+    if (users == null) {
+      users = new Set()
+      this.byRoom.set(roomId, users)
+    }
+    if (users.has(userId)) {
       return { isNew: false }
     }
-    this.members.add(key)
+    users.add(userId)
     return { isNew: true }
+  }
+
+  async countDistinctUsers (roomIds: string[]): Promise<number> {
+    const distinct = new Set<string>()
+    for (const roomId of roomIds) {
+      for (const userId of this.byRoom.get(roomId) ?? []) {
+        distinct.add(userId)
+      }
+    }
+    return distinct.size
   }
 }
 
@@ -218,5 +234,57 @@ export class InMemoryCredentialRepository implements CredentialRepository {
 
   async delete (id: string): Promise<void> {
     this.rows.delete(id)
+  }
+}
+
+export class InMemoryUsageRepository implements UsageRepository {
+  private readonly rows: Array<{ event: UsageEvent; seq: number }> = []
+  private seq = 0
+
+  async record (input: UsageEventCreateInput): Promise<UsageEvent> {
+    const event: UsageEvent = {
+      id: `usage_${++this.seq}`,
+      tenantId: input.tenantId,
+      botId: input.botId,
+      roomId: input.roomId,
+      type: input.type,
+      timestamp: new Date(),
+      meta: input.meta
+    }
+    this.rows.push({ event: clone(event), seq: this.seq })
+    return clone(event)
+  }
+
+  async countByBotAndType (botId: string, type: UsageType): Promise<number> {
+    return this.rows.filter((r) => r.event.botId === botId && r.event.type === type).length
+  }
+
+  async listByBot (botId: string, limit = 50): Promise<UsageEvent[]> {
+    return [...this.rows]
+      .filter((r) => r.event.botId === botId)
+      .sort((a, b) => b.seq - a.seq)
+      .slice(0, limit)
+      .map((r) => clone(r.event))
+  }
+
+  async summarize (botId: string): Promise<UsageSummary> {
+    const count = async (type: UsageType): Promise<number> => await this.countByBotAndType(botId, type)
+    const [messages, aiResponses, aiRequests, speakerInvites, automationActions] = await Promise.all([
+      count('message_received'),
+      count('ai_response'),
+      count('ai_request'),
+      count('speaker_invite'),
+      count('automation_triggered')
+    ])
+    return {
+      messages,
+      aiResponses,
+      aiRequests,
+      users: 0,
+      rooms: 0,
+      speakerInvites,
+      automationActions,
+      errors: 0
+    }
   }
 }

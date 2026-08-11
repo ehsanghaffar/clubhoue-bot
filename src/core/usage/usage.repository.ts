@@ -10,6 +10,7 @@ import { UsageEventModel, toUsageEvent } from '../../models/usageEvent.js'
 export interface UsageRepository {
   record: (input: UsageEventCreateInput) => Promise<UsageEvent>
   countByBotAndType: (botId: string, type: UsageType) => Promise<number>
+  listByBot: (botId: string, limit?: number) => Promise<UsageEvent[]>
   summarize: (botId: string) => Promise<UsageSummary>
 }
 
@@ -27,6 +28,14 @@ export class MongoUsageRepository implements UsageRepository {
 
   async countByBotAndType (botId: string, type: UsageType): Promise<number> {
     return await UsageEventModel.countDocuments({ botId, type })
+  }
+
+  async listByBot (botId: string, limit = 50): Promise<UsageEvent[]> {
+    const docs = await UsageEventModel.find({ botId })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .lean()
+    return docs.map(toUsageEvent)
   }
 
   async summarize (botId: string): Promise<UsageSummary> {

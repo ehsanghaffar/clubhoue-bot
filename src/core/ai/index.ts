@@ -13,6 +13,7 @@ import { OpenAiProvider } from './openai.provider.js'
 import { AiService } from './ai.service.js'
 import { InMemoryAiCooldownStore } from './in-memory-cooldown.js'
 import { AgentService } from './agent.service.js'
+import { usageService } from '../usage/index.js'
 
 export * from './ai.types.js'
 export * from './prompt.service.js'
@@ -26,4 +27,7 @@ export const aiService = new AiService({
   cooldown: new InMemoryAiCooldownStore()
 })
 
-export const agentService = new AgentService({ ai: aiService })
+export const agentService = new AgentService({
+  ai: aiService,
+  usage: usageService
+})

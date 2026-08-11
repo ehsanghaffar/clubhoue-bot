@@ -13,6 +13,8 @@ export interface RoomMemberSeenResult {
 export interface RoomMemberRepository {
   /** Marks a user as seen in a room; reports whether they were previously unknown. */
   ensureSeen: (roomId: string, userId: string, displayName?: string) => Promise<RoomMemberSeenResult>
+  /** Counts distinct users seen across the given room ids. */
+  countDistinctUsers: (roomIds: string[]) => Promise<number>
 }
 
 export class MongoRoomMemberRepository implements RoomMemberRepository {
@@ -31,6 +33,14 @@ export class MongoRoomMemberRepository implements RoomMemberRepository {
       }
       throw err
     }
+  }
+
+  async countDistinctUsers (roomIds: string[]): Promise<number> {
+    if (roomIds.length === 0) {
+      return 0
+    }
+    const userIds = await RoomMemberModel.distinct('userId', { roomId: { $in: roomIds } })
+    return userIds.length
   }
 }
 

@@ -35,12 +35,12 @@ export class BotService {
     return await this.deps.repo.findByIdAndTenant(id, tenantId)
   }
 
-  async updateBot (id: string, patch: BotUpdateInput): Promise<Bot | null> {
-    return await this.deps.repo.update(id, patch)
+  async updateBot (tenantId: string, id: string, patch: BotUpdateInput): Promise<Bot | null> {
+    return await this.deps.repo.update(tenantId, id, patch)
   }
 
-  async deleteBot (id: string): Promise<void> {
-    await this.deps.repo.delete(id)
+  async deleteBot (tenantId: string, id: string): Promise<void> {
+    await this.deps.repo.delete(tenantId, id)
   }
 
   /**

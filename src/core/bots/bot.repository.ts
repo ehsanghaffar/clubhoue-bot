@@ -22,8 +22,8 @@ export interface BotRepository {
   findByIdAndTenant: (id: string, tenantId: string) => Promise<Bot | null>
   findByTenant: (tenantId: string) => Promise<Bot[]>
   findByStatus: (status: BotStatus) => Promise<Bot[]>
-  update: (id: string, patch: BotUpdateInput) => Promise<Bot | null>
-  delete: (id: string) => Promise<void>
+  update: (tenantId: string, id: string, patch: BotUpdateInput) => Promise<Bot | null>
+  delete: (tenantId: string, id: string) => Promise<void>
 }
 
 export class MongoBotRepository implements BotRepository {
@@ -59,13 +59,17 @@ export class MongoBotRepository implements BotRepository {
     return docs.map(toBot)
   }
 
-  async update (id: string, patch: BotUpdateInput): Promise<Bot | null> {
-    const doc = await BotModel.findByIdAndUpdate(id, patch, { new: true }).lean()
+  async update (tenantId: string, id: string, patch: BotUpdateInput): Promise<Bot | null> {
+    const doc = await BotModel.findOneAndUpdate(
+      { _id: id, tenantId },
+      patch,
+      { new: true }
+    ).lean()
     return doc == null ? null : toBot(doc)
   }
 
-  async delete (id: string): Promise<void> {
-    await BotModel.deleteOne({ _id: id })
+  async delete (tenantId: string, id: string): Promise<void> {
+    await BotModel.deleteOne({ _id: id, tenantId })
   }
 }
 

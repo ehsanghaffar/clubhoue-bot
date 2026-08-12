@@ -24,8 +24,8 @@ export interface RoomRepository {
   findByBotAndTenant: (botId: string, tenantId: string) => Promise<BotRoom[]>
   findByStatus: (status: BotRoomStatus) => Promise<BotRoom[]>
   findByTenantAndStatus: (tenantId: string, status: BotRoomStatus) => Promise<BotRoom[]>
-  update: (id: string, patch: RoomUpdateInput) => Promise<BotRoom | null>
-  delete: (id: string) => Promise<void>
+  update: (tenantId: string, id: string, patch: RoomUpdateInput) => Promise<BotRoom | null>
+  delete: (tenantId: string, id: string) => Promise<void>
 }
 
 export class MongoRoomRepository implements RoomRepository {
@@ -75,19 +75,23 @@ export class MongoRoomRepository implements RoomRepository {
     return docs.map(toBotRoom)
   }
 
-  async update (id: string, patch: RoomUpdateInput): Promise<BotRoom | null> {
+  async update (tenantId: string, id: string, patch: RoomUpdateInput): Promise<BotRoom | null> {
     const update: Record<string, unknown> = { ...patch }
     if (patch.settings != null) {
       // Merge settings subdocument instead of replacing wholesale.
-      const current = await BotRoomModel.findById(id).lean()
+      const current = await BotRoomModel.findOne({ _id: id, tenantId }).lean()
       update.settings = { ...(current?.settings ?? {}), ...patch.settings }
     }
-    const doc = await BotRoomModel.findByIdAndUpdate(id, update, { new: true }).lean()
+    const doc = await BotRoomModel.findOneAndUpdate(
+      { _id: id, tenantId },
+      update,
+      { new: true }
+    ).lean()
     return doc == null ? null : toBotRoom(doc)
   }
 
-  async delete (id: string): Promise<void> {
-    await BotRoomModel.deleteOne({ _id: id })
+  async delete (tenantId: string, id: string): Promise<void> {
+    await BotRoomModel.deleteOne({ _id: id, tenantId })
   }
 }
 

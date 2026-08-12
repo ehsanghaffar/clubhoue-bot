@@ -57,16 +57,17 @@ class InMemoryCredentialRepository implements CredentialRepository {
     return [...this.rows.values()].filter((r) => r.tenantId === tenantId)
   }
 
-  async update (id: string, patch: CredentialUpdateInput): Promise<BotCredential | null> {
+  async update (tenantId: string, id: string, patch: CredentialUpdateInput): Promise<BotCredential | null> {
     const row = this.rows.get(id)
-    if (row == null) return null
+    if (row == null || row.tenantId !== tenantId) return null
     const updated: BotCredential = { ...row, ...patch, updatedAt: new Date() }
     this.rows.set(id, updated)
     return updated
   }
 
-  async delete (id: string): Promise<void> {
-    this.rows.delete(id)
+  async delete (tenantId: string, id: string): Promise<void> {
+    const row = this.rows.get(id)
+    if (row != null && row.tenantId === tenantId) this.rows.delete(id)
   }
 }
 
@@ -117,9 +118,22 @@ describe('CredentialService', () => {
       platform: 'clubhouse',
       token: 'token'
     })
-    const revoked = await service.revoke(credential.id)
+    const revoked = await service.revoke(credential.tenantId, credential.id)
     expect(revoked?.status).toBe('revoked')
     expect(await service.getActiveByBot('bot-1')).toBeNull()
+  })
+
+  it('does not revoke a credential belonging to another tenant', async () => {
+    const service = makeService()
+    const credential = await service.createCredential({
+      tenantId: 'tenant-1',
+      botId: 'bot-1',
+      platform: 'clubhouse',
+      token: 'token'
+    })
+    const revoked = await service.revoke('tenant-2', credential.id)
+    expect(revoked).toBeNull()
+    expect(await service.getByIdAndTenant(credential.id, 'tenant-1')).not.toBeNull()
   })
 
   it('deletes a credential', async () => {
@@ -130,7 +144,19 @@ describe('CredentialService', () => {
       platform: 'clubhouse',
       token: 'token'
     })
-    await service.deleteCredential(credential.id)
+    await service.deleteCredential(credential.tenantId, credential.id)
     expect(await service.getByIdAndTenant(credential.id, 'tenant-1')).toBeNull()
+  })
+
+  it('does not delete a credential belonging to another tenant', async () => {
+    const service = makeService()
+    const credential = await service.createCredential({
+      tenantId: 'tenant-1',
+      botId: 'bot-1',
+      platform: 'clubhouse',
+      token: 'token'
+    })
+    await service.deleteCredential('tenant-2', credential.id)
+    expect(await service.getByIdAndTenant(credential.id, 'tenant-1')).not.toBeNull()
   })
 })

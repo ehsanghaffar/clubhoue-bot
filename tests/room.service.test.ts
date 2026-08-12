@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventBus } from '../src/core/events/event-bus.js'
 import { RoomService } from '../src/core/rooms/room.service.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication/message-dedup.js'
 import { InMemoryRoomRepository, InMemoryRoomMemberRepository } from './helpers/in-memory.js'
 import type { BotRoom } from '../src/core/rooms/room.types.js'
@@ -51,7 +52,7 @@ describe('RoomService', () => {
     members = new InMemoryRoomMemberRepository()
     dedup = new InMemoryMessageDeduplicator()
     bus = new EventBus()
-    service = new RoomService({ repo, members, deduplicator: dedup, bus })
+    service = new RoomService({ repo, members, deduplicator: dedup, bus, eventStore: new InMemoryEventStore() })
   })
 
   it('creates a room with resolved settings', async () => {

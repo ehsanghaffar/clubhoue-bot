@@ -8,7 +8,6 @@ import type { BotCredential, BotCredentialCreateInput, DecryptedCredential } fro
 import type { CredentialRepository } from './credential.repository.js'
 import { credentialRepository } from './credential.repository.js'
 import { decryptSecret, encryptSecret } from './credential-encryption.js'
-import { createNotFoundError } from '../../utils/errors.js'
 
 /**
  * The sensitive material encrypted at rest. The auth token and device
@@ -55,20 +54,22 @@ export class CredentialService {
     return await this.repo.findActiveByBot(botId)
   }
 
-  async revoke (id: string): Promise<BotCredential | null> {
-    return await this.repo.update(id, { status: 'revoked' })
+  async revoke (tenantId: string, id: string): Promise<BotCredential | null> {
+    return await this.repo.update(tenantId, id, { status: 'revoked' })
   }
 
-  async markInvalid (id: string): Promise<BotCredential | null> {
-    return await this.repo.update(id, { status: 'invalid' })
+  async markInvalid (tenantId: string, id: string): Promise<BotCredential | null> {
+    return await this.repo.update(tenantId, id, { status: 'invalid' })
   }
 
-  async deleteCredential (id: string): Promise<void> {
-    const existing = await this.repo.findById(id)
+  async deleteCredential (tenantId: string, id: string): Promise<void> {
+    const existing = await this.repo.findByIdAndTenant(id, tenantId)
+    // Non-disclosure: a missing or cross-tenant credential is a no-op rather
+    // than a 404, so callers cannot probe credential existence across tenants.
     if (existing == null) {
-      throw createNotFoundError('Credential not found')
+      return
     }
-    await this.repo.delete(id)
+    await this.repo.delete(tenantId, id)
   }
 
   /**

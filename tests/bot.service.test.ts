@@ -86,14 +86,27 @@ describe('BotService', () => {
 
   it('updates a bot', async () => {
     const bot = await service.createBot({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-    const updated = await service.updateBot(bot.id, { name: 'Renamed' })
+    const updated = await service.updateBot(bot.tenantId, bot.id, { name: 'Renamed' })
     expect(updated?.name).toBe('Renamed')
+  })
+
+  it('does not update a bot belonging to another tenant', async () => {
+    const bot = await service.createBot({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+    const updated = await service.updateBot('tenant-2', bot.id, { name: 'Renamed' })
+    expect(updated).toBeNull()
+    expect((await service.getByIdAndTenant(bot.id, 'tenant-1'))?.name).toBe('Helper')
   })
 
   it('deletes a bot', async () => {
     const bot = await service.createBot({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-    await service.deleteBot(bot.id)
+    await service.deleteBot(bot.tenantId, bot.id)
     expect(await service.getByIdAndTenant(bot.id, 'tenant-1')).toBeNull()
+  })
+
+  it('does not delete a bot belonging to another tenant', async () => {
+    const bot = await service.createBot({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+    await service.deleteBot('tenant-2', bot.id)
+    expect(await service.getByIdAndTenant(bot.id, 'tenant-1')).not.toBeNull()
   })
 
   it('throws when creating an adapter without an active credential', async () => {

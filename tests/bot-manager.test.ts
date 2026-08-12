@@ -9,6 +9,7 @@ import { BotManager } from '../src/core/bots/bot-manager.js'
 import { BotService } from '../src/core/bots/bot.service.js'
 import { RoomService } from '../src/core/rooms/room.service.js'
 import { EventBus } from '../src/core/events/event-bus.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication/message-dedup.js'
 import {
   InMemoryBotRepository,
@@ -58,7 +59,7 @@ describe('BotManager', () => {
     roomRepo = new InMemoryRoomRepository()
     memberRepo = new InMemoryRoomMemberRepository()
     bus = new EventBus()
-    const roomService = new RoomService({ repo: roomRepo, members: memberRepo, deduplicator: new InMemoryMessageDeduplicator(), bus })
+    const roomService = new RoomService({ repo: roomRepo, members: memberRepo, deduplicator: new InMemoryMessageDeduplicator(), bus, eventStore: new InMemoryEventStore() })
     botService = new BotService({
       repo: botRepo,
       credentials: {
@@ -104,7 +105,7 @@ describe('BotManager', () => {
 
   it('startAll restarts previously active bots', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-    await botRepo.update(bot.id, { status: 'active' })
+    await botRepo.update(bot.tenantId, bot.id, { status: 'active' })
 
     await botManager.startAll()
     expect((await botRepo.findById(bot.id))?.status).toBe('active')

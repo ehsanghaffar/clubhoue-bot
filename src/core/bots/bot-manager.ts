@@ -69,19 +69,20 @@ export class BotManager {
           await this.deps.roomService.join(room, adapter)
         } catch (error) {
           logger.error('Failed to join room', { botId, roomId: room.id, error })
-          await this.deps.roomService.update(room.id, { status: 'error' })
+          await this.deps.roomService.update(room.tenantId, room.id, { status: 'error' })
           continue
         }
       }
       this.startRoomLoop(bot, room, adapter)
     }
 
-    await this.deps.bots.update(botId, { status: 'active' })
+    await this.deps.bots.update(bot.tenantId, botId, { status: 'active' })
     logger.info('Bot started', { botId })
   }
 
   /** Stops a bot: clears its loops and marks it stopped. */
   async stopBot (botId: string): Promise<void> {
+    const runtime = this.runtimes.get(botId)
     for (const [key, entry] of this.loops) {
       if (key.startsWith(`${botId}:`)) {
         clearInterval(entry.interval)
@@ -89,7 +90,12 @@ export class BotManager {
       }
     }
     this.runtimes.delete(botId)
-    await this.deps.bots.update(botId, { status: 'stopped' })
+    // The bot record carries its tenantId; fall back to a lookup if the runtime
+    // was not loaded in this process.
+    const tenantId = runtime?.bot.tenantId ?? (await this.deps.bots.findById(botId))?.tenantId
+    if (tenantId != null) {
+      await this.deps.bots.update(tenantId, botId, { status: 'stopped' })
+    }
     logger.info('Bot stopped', { botId })
   }
 

@@ -90,7 +90,7 @@ export const createCredentialsController = (deps: CredentialsControllerDeps): Cr
         next(createNotFoundError('Credential not found'))
         return
       }
-      await deps.credentialService.deleteCredential(credential.id)
+      await deps.credentialService.deleteCredential(credential.tenantId, credential.id)
       res.status(204).end()
     } catch (err) {
       next(err)

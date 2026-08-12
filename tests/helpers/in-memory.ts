@@ -65,16 +65,17 @@ export class InMemoryBotRepository implements BotRepository {
     return [...this.rows.values()].filter((b) => b.status === status).map(clone)
   }
 
-  async update (id: string, patch: BotUpdateInput): Promise<Bot | null> {
+  async update (tenantId: string, id: string, patch: BotUpdateInput): Promise<Bot | null> {
     const row = this.rows.get(id)
-    if (row == null) return null
+    if (row == null || row.tenantId !== tenantId) return null
     const updated = { ...row, ...patch, updatedAt: new Date() }
     this.rows.set(id, updated)
     return clone(updated)
   }
 
-  async delete (id: string): Promise<void> {
-    this.rows.delete(id)
+  async delete (tenantId: string, id: string): Promise<void> {
+    const row = this.rows.get(id)
+    if (row != null && row.tenantId === tenantId) this.rows.delete(id)
   }
 }
 
@@ -136,9 +137,9 @@ export class InMemoryRoomRepository implements RoomRepository {
     return [...this.rows.values()].filter((r) => r.tenantId === tenantId && r.status === status).map(clone)
   }
 
-  async update (id: string, patch: RoomUpdateInput): Promise<BotRoom | null> {
+  async update (tenantId: string, id: string, patch: RoomUpdateInput): Promise<BotRoom | null> {
     const row = this.rows.get(id)
-    if (row == null) return null
+    if (row == null || row.tenantId !== tenantId) return null
     const updated = {
       ...row,
       ...patch,
@@ -149,8 +150,9 @@ export class InMemoryRoomRepository implements RoomRepository {
     return clone(updated)
   }
 
-  async delete (id: string): Promise<void> {
-    this.rows.delete(id)
+  async delete (tenantId: string, id: string): Promise<void> {
+    const row = this.rows.get(id)
+    if (row != null && row.tenantId === tenantId) this.rows.delete(id)
   }
 }
 
@@ -226,16 +228,17 @@ export class InMemoryCredentialRepository implements CredentialRepository {
     return [...this.rows.values()].filter((c) => c.tenantId === tenantId).map(clone)
   }
 
-  async update (id: string, patch: { status?: string }): Promise<BotCredential | null> {
+  async update (tenantId: string, id: string, patch: { status?: string }): Promise<BotCredential | null> {
     const row = this.rows.get(id)
-    if (row == null) return null
+    if (row == null || row.tenantId !== tenantId) return null
     const updated = { ...row, ...patch, updatedAt: new Date() } as BotCredential
     this.rows.set(id, updated)
     return clone(updated)
   }
 
-  async delete (id: string): Promise<void> {
-    this.rows.delete(id)
+  async delete (tenantId: string, id: string): Promise<void> {
+    const row = this.rows.get(id)
+    if (row != null && row.tenantId === tenantId) this.rows.delete(id)
   }
 }
 

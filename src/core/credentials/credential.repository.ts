@@ -30,8 +30,8 @@ export interface CredentialRepository {
   findActiveByBot: (botId: string) => Promise<BotCredential | null>
   findByBot: (botId: string) => Promise<BotCredential[]>
   findByTenant: (tenantId: string) => Promise<BotCredential[]>
-  update: (id: string, patch: CredentialUpdateInput) => Promise<BotCredential | null>
-  delete: (id: string) => Promise<void>
+  update: (tenantId: string, id: string, patch: CredentialUpdateInput) => Promise<BotCredential | null>
+  delete: (tenantId: string, id: string) => Promise<void>
 }
 
 export class MongoCredentialRepository implements CredentialRepository {
@@ -67,13 +67,17 @@ export class MongoCredentialRepository implements CredentialRepository {
     return docs.map(toBotCredential)
   }
 
-  async update (id: string, patch: CredentialUpdateInput): Promise<BotCredential | null> {
-    const doc = await BotCredentialModel.findByIdAndUpdate(id, patch, { new: true }).lean()
+  async update (tenantId: string, id: string, patch: CredentialUpdateInput): Promise<BotCredential | null> {
+    const doc = await BotCredentialModel.findOneAndUpdate(
+      { _id: id, tenantId },
+      patch,
+      { new: true }
+    ).lean()
     return doc == null ? null : toBotCredential(doc)
   }
 
-  async delete (id: string): Promise<void> {
-    await BotCredentialModel.deleteOne({ _id: id })
+  async delete (tenantId: string, id: string): Promise<void> {
+    await BotCredentialModel.deleteOne({ _id: id, tenantId })
   }
 }
 

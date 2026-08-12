@@ -91,7 +91,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
       // The repository replaces the whole aiConfig subdocument, so merge the
       // partial patch into the current config to avoid wiping unset fields.
       if (body.aiConfig !== undefined) patch.aiConfig = { ...bot.aiConfig, ...body.aiConfig }
-      const updated = await deps.botService.updateBot(bot.id, patch)
+      const updated = await deps.botService.updateBot(bot.tenantId, bot.id, patch)
       res.json({ data: updated ?? bot })
     } catch (err) {
       next(err)
@@ -107,7 +107,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
       }
       // Stop any running loops first, otherwise orphaned runtime state remains.
       await deps.botManager.stopBot(bot.id)
-      await deps.botService.deleteBot(bot.id)
+      await deps.botService.deleteBot(bot.tenantId, bot.id)
       res.status(204).end()
     } catch (err) {
       next(err)

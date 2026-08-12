@@ -12,6 +12,8 @@ import swaggerJsdoc from 'swagger-jsdoc'
 import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middlewares/error-handler.js'
 import requireApiKey from './middlewares/api-key.js'
+import { authentication } from './api/middleware/authentication.js'
+import { tenantContext } from './api/middleware/tenant-context.js'
 import routes from './routes/routes.js'
 import logger from './utils/logger.js'
 import { createV1Router } from './api/routes/v1.routes.js'
@@ -141,17 +143,23 @@ export const createApp = (options: AppOptions = {}): Express => {
     res.send(swaggerSpec)
   })
 
-  // Legacy Clubhouse API. Authentication is enforced globally so every route
-  // (including profile/token management) is protected by the API key. The
-  // surface is deprecated (RFC 8594 headers) but kept functional during the
-  // migration window — new consumers should use the /v1 API.
+  // Legacy Clubhouse API. The surface is deprecated (RFC 8594 headers) but kept
+  // functional during the migration window — new consumers should use /v1.
+  //
+  // Authorization now uses the SAME tenant-resolution mechanism as /v1: the
+  // caller must present an API key that resolves to an active tenant. This
+  // establishes req.tenant for the legacy path so it can no longer bypass the
+  // tenant isolation boundary. Endpoint behavior is unchanged — legacy
+  // controllers still operate on the shared clubService identity.
   if (!legacyDeprecationLogged) {
     legacyDeprecationLogged = true
     logger.warn('Legacy /api is deprecated. Migrate consumers to /v1 before the sunset date.')
   }
   app.use('/api', deprecateLegacyApi)
   app.use('/api', apiLimiter)
-  app.use('/api', requireApiKey, routes)
+  app.use('/api', authentication(tenantSvc))
+  app.use('/api', tenantContext)
+  app.use('/api', routes)
 
   // Public /v1 API. Authentication + tenant context is enforced inside the
   // router (with injectable services), and rate limiting applies to the whole

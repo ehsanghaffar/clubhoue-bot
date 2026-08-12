@@ -93,9 +93,20 @@ src/
 - **API server** (`src/server.ts` → `dist/server.js`) — the ONLY live process. Serves HTTP + Swagger, boots the BotManager runtime (`botManager.startAll()` exactly once), and runs the event pipeline (moderation → automation → usage) in-process.
 - **Worker** (`src/worker.ts` → `dist/worker.js`) — FUTURE infrastructure. Not started in the MVP; must not boot live bots. Reserved for the Scheduler → Queue → Worker architecture.
 
+## Event durability
+
+The in-memory `EventBus` is backed by a **durable Mongo event store** (`src/core/events/event-store.ts`, `src/models/communityEvent.ts`). `RoomService.publish` persists the event **before** dispatching it to the bus, so a process crash cannot lose an accepted event. Each event has a **deterministic id** (derived from type + room + message/user id) so duplicates are processed exactly once.
+
+The `EventProcessor` tracks each event through `pending → processing → processed/failed` and, on startup, **recovers** incomplete events left by a prior run. Failures are **bounded-retry** (max 3 attempts) before a terminal `failed` state. Processed events carry a TTL (30 days) for retention; pending/processing/failed events are never TTL-deleted so recovery always sees them. The store interface is queue-agnostic so a future Redis/Kafka-backed implementation can drop in without touching the processor.
+
+## AI reliability
+
+The OpenAI provider (`src/core/ai/openai.provider.ts`) enforces a **25s request timeout** and **bounded transient retry** (max 2 attempts with backoff). Transient failures (429, 5xx, network/timeout) are retried; permanent failures (4xx auth/request/policy) fail fast. AI failures never crash the room loop — a permanent failure or exhausted retries yield an empty (skipped) response, and errors are logged without leaking the API key or prompt.
+
 ## See also
 
 - [`docs/api.md`](api.md) — the HTTP API surface.
 - [`docs/bot-lifecycle.md`](bot-lifecycle.md) — bot runtime lifecycle.
 - [`docs/automation.md`](automation.md) — the event/automation pipeline.
 - [`docs/platforms.md`](platforms.md) — platform adapters.
+- [`docs/security.md`](security.md) — tenant isolation, credentials, and auth.

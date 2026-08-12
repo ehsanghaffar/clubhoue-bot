@@ -99,6 +99,42 @@ The in-memory `EventBus` is backed by a **durable Mongo event store** (`src/core
 
 The `EventProcessor` tracks each event through `pending → processing → processed/failed` and, on startup, **recovers** incomplete events left by a prior run. Failures are **bounded-retry** (max 3 attempts) before a terminal `failed` state. Processed events carry a TTL (30 days) for retention; pending/processing/failed events are never TTL-deleted so recovery always sees them. The store interface is queue-agnostic so a future Redis/Kafka-backed implementation can drop in without touching the processor.
 
+## Runtime model diagram (detailed)
+
+The diagram below shows how the single API process hosts per-bot runtimes while enforcing tenant boundaries. Note the per-bot `runtimes` map and per-room `botId:roomId` loops; credential decryption happens only inside `BotService.createAdapter` and the resulting adapter instance is owned by that bot's runtime.
+
+```mermaid
+flowchart TD
+   subgraph API_Process[API process (single runtime)]
+      direction TB
+      Server[Express Server]
+      Server --> BotManager[BotManager (runtimes map)]
+      BotManager --> RuntimeA[Runtime: botA]
+      BotManager --> RuntimeB[Runtime: botB]
+      RuntimeA --> AdapterA[Adapter (decrypted cred for tenantA/botA)]
+      RuntimeB --> AdapterB[Adapter (decrypted cred for tenantB/botB)]
+      RuntimeA --> LoopA1[Loop botA:room1]
+      RuntimeA --> LoopA2[Loop botA:room2]
+      RuntimeB --> LoopB1[Loop botB:room3]
+      LoopA1 -->|getMessages / ping| AdapterA
+      LoopA2 -->|getMessages / ping| AdapterA
+      LoopB1 -->|getMessages / ping| AdapterB
+      Server --> EventStore[Durable Event Store (Mongo)]
+      Server --> EventProcessor[EventProcessor]
+      EventProcessor --> Automation[Automation Stage]
+   end
+
+   Client --> Server
+   AdapterA --> ClubhouseAPI[Clubhouse private API]
+   AdapterB --> ClubhouseAPI
+```
+
+Key takeaways:
+
+- The API process boots exactly one `BotManager`. Each `Runtime` holds a single adapter instance created from a tenant-scoped, active credential; adapters are never shared across tenants or bots.
+- Room sync loops and active-ping loops are scoped to `botId:roomId` and always call the adapter instance owned by that runtime.
+- Events are persisted to the durable store before being published; the `EventProcessor` recovers on restart and replays pending/processing events for deterministic behavior.
+
 ## AI reliability
 
 The OpenAI provider (`src/core/ai/openai.provider.ts`) enforces a **25s request timeout** and **bounded transient retry** (max 2 attempts with backoff). Transient failures (429, 5xx, network/timeout) are retried; permanent failures (4xx auth/request/policy) fail fast. AI failures never crash the room loop — a permanent failure or exhausted retries yield an empty (skipped) response, and errors are logged without leaking the API key or prompt.

@@ -83,13 +83,13 @@ describe('InMemoryEventStore', () => {
   })
 
   describe('bounded retry', () => {
-    it('returns a failed event to pending while attempts remain', async () => {
+    it('returns a failed event to pending while attempts remain without double-counting the same attempt', async () => {
       const store = new InMemoryEventStore()
       await store.persist(makeEvent('evt-1'))
       await store.claim('evt-1', 'tenant-1')
       await store.markFailed('evt-1', 'tenant-1', 'boom')
       expect(store.row('evt-1')?.status).toBe('pending')
-      expect(store.row('evt-1')?.attempts).toBe(2)
+      expect(store.row('evt-1')?.attempts).toBe(1)
       expect(store.row('evt-1')?.error).toBe('boom')
     })
 
@@ -100,8 +100,10 @@ describe('InMemoryEventStore', () => {
       await store.markFailed('evt-1', 'tenant-1', 'fail-1')
       await store.claim('evt-1', 'tenant-1')
       await store.markFailed('evt-1', 'tenant-1', 'fail-2')
+      await store.claim('evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', 'fail-3')
       expect(store.row('evt-1')?.status).toBe('failed')
-      expect(store.row('evt-1')?.attempts).toBe(MAX_EVENT_ATTEMPTS + 1)
+      expect(store.row('evt-1')?.attempts).toBe(MAX_EVENT_ATTEMPTS)
     })
 
     it('does not recover a terminally-failed event', async () => {
@@ -111,6 +113,8 @@ describe('InMemoryEventStore', () => {
       await store.markFailed('evt-1', 'tenant-1', 'fail-1')
       await store.claim('evt-1', 'tenant-1')
       await store.markFailed('evt-1', 'tenant-1', 'fail-2')
+      await store.claim('evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', 'fail-3')
       const recovered = await store.recover()
       expect(recovered).toHaveLength(0)
     })

@@ -93,12 +93,11 @@ export class MongoEventStore implements EventStore {
   }
 
   async markFailed (eventId: string, tenantId: string, error: string): Promise<void> {
-    // Fetch attempts to decide pending-retry vs terminal failed.
     const doc = await CommunityEventModel.findOne({ _id: eventId, tenantId }).lean()
     if (doc == null) {
       return
     }
-    const attempts = doc.attempts + 1
+    const attempts = doc.attempts
     const terminal = attempts >= MAX_EVENT_ATTEMPTS
     const status: CommunityEventStatus = terminal ? 'failed' : 'pending'
     await CommunityEventModel.updateOne(
@@ -106,7 +105,6 @@ export class MongoEventStore implements EventStore {
       {
         $set: {
           status,
-          attempts,
           error: error.slice(0, 500),
           expiresAt: computeExpiry(status)
         }

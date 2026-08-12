@@ -80,7 +80,6 @@ export class InMemoryEventStore implements EventStore {
     if (row == null || row.event.tenantId !== tenantId) {
       return
     }
-    row.attempts += 1
     row.error = error.slice(0, 500)
     row.status = row.attempts >= MAX_EVENT_ATTEMPTS ? 'failed' : 'pending'
   }

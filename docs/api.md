@@ -58,6 +58,19 @@ content-type: application/json
 { "data": { "id": "…", "name": "Alpha", "platform": "clubhouse", "status": "created", … } }
 ```
 
+### Runtime contract
+
+- Runtime operations that construct or use a platform adapter (for example
+	`POST /v1/bots/:botId/start`, `GET /v1/bots/:botId/me`, and background
+	worker calls) always resolve credentials in a tenant-aware manner. A bot's
+	active credential is looked up using both the tenant and bot id; runtime
+	code will not act on a credential belonging to a different tenant.
+- If a runtime operation requires an active credential and none exists the
+	API returns `400 BAD_REQUEST` (or `404` for cross-tenant access attempts).
+- Adapter keep-alive (`ping`) and per-room sync loops are scoped to the
+	`botId:roomId` runtime so the platform's per-room presence semantics are
+	preserved.
+
 ## `/api` (legacy Clubhouse API — deprecated)
 
 Clubhouse-specific endpoints, protected by the API key and rate limited. The surface is **deprecated** (RFC 8594): every `/api` response carries `Deprecation` and `Sunset` headers plus a `Link: </v1>; rel="successor-version"`, and the server logs a deprecation warning at startup. It keeps working until the sunset date so existing integrations can migrate at their own pace.

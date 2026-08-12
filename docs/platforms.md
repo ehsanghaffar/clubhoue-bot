@@ -31,6 +31,11 @@ The core domain (bots, rooms, events, automation, AI, usage) depends only on thi
 
 Credentials are decrypted only in `BotService.createAdapter`, right before the adapter is constructed. Plaintext tokens never travel through the API, automation, or logging layers.
 
+Runtime contract notes:
+
+- Credential decryption is strictly local to `BotService.createAdapter` and is always performed with tenant-scoped inputs. Platform adapters must be created per-decrypted-credential instance and must not rely on any global or cross-tenant credential material.
+- Keep-alive / active-ping behavior is implemented by the adapter when supported. `BotManager` and background jobs call the adapter's optional `ping(externalRoomId)` method on a per-bot-per-room basis; adapters must implement `ping` without assuming a global bot identity.
+
 ## Adding a platform (Discord later)
 
 Add a `src/platforms/discord/` directory implementing `CommunityPlatformAdapter`, normalize into the shared domain types, and register it with `registerAdapterFactory('discord', …)`. No core-domain changes are required.

@@ -41,8 +41,18 @@ Create Bot → Attach Credential → Configure Room → Start Bot
 1. Loads the bot; throws if it has no active credential.
 2. Builds an adapter via `BotService.createAdapter` → `createPlatformAdapter(platform, decryptedCredential)`.
 3. Resolves the bot's external user id (for self-message suppression in automation).
+     - Note: the runtime resolution is tenant-aware — the external user id is
+         always looked up from the active credential scoped to the bot's
+         tenant. Runtime paths (BotManager, adapters, and background jobs) must
+         never resolve credentials without tenant context.
 4. Stores a per-bot runtime (bot + adapter) in the manager's `runtimes` map — **no global mutable state**; the manager is a per-process instance.
 5. For each configured room: joins it (`adapter.joinRoom`, status → `active`, publishes `room.joined`), then starts a sync loop keyed `botId:roomId`.
+     - Active ping / keep-alive: when a platform supports it the adapter
+         exposes an optional `ping(externalRoomId)` method. `BotManager` starts a
+         room-scoped keep-alive loop that calls the adapter's `ping` for that
+         specific `botId:roomId` runtime. Keep-alives are intentionally scoped to
+         the bot+room to model the platform's requirement that a bot maintain an
+         active presence per-room.
 6. Marks the bot `active`.
 
 ### 5. Run

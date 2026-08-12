@@ -7,6 +7,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { EventBus } from '../src/core/events/event-bus.js'
 import { EventProcessor } from '../src/core/events/event-processor.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import type { CommunityEvent } from '../src/core/events/event.types.js'
 
 const makeEvent = (overrides: Partial<CommunityEvent> = {}): CommunityEvent => ({
@@ -79,7 +80,8 @@ describe('EventBus', () => {
 describe('EventProcessor', () => {
   it('runs registered stages in order', async () => {
     const bus = new EventBus()
-    const processor = new EventProcessor(bus)
+    const eventStore = new InMemoryEventStore()
+    const processor = new EventProcessor({ bus, eventStore })
     const order: string[] = []
 
     processor
@@ -96,7 +98,8 @@ describe('EventProcessor', () => {
 
   it('continues to later stages when one throws', async () => {
     const bus = new EventBus()
-    const processor = new EventProcessor(bus)
+    const eventStore = new InMemoryEventStore()
+    const processor = new EventProcessor({ bus, eventStore })
     const reached = vi.fn()
 
     processor
@@ -118,7 +121,8 @@ describe('EventProcessor', () => {
 
   it('is idempotent on start', () => {
     const bus = new EventBus()
-    const processor = new EventProcessor(bus)
+    const eventStore = new InMemoryEventStore()
+    const processor = new EventProcessor({ bus, eventStore })
     processor.start()
     processor.start()
     expect(bus.subscribeAll).toBeDefined()

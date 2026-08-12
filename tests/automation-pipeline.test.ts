@@ -11,6 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventBus } from '../src/core/events/event-bus.js'
 import { EventProcessor } from '../src/core/events/event-processor.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { AutomationStage } from '../src/core/automation/automation-stage.js'
 import { AutomationEngine } from '../src/core/automation/rule-engine.js'
 import { createWelcomeRule, DEFAULT_WELCOME_MESSAGE } from '../src/core/automation/rules/welcome.rule.js'
@@ -86,10 +87,12 @@ describe('automation pipeline', () => {
   let usageService: UsageService
   let bot: Bot
   let room: BotRoom
+  let eventStore: InMemoryEventStore
 
   beforeEach(() => {
     bus = new EventBus()
-    processor = new EventProcessor(bus)
+    eventStore = new InMemoryEventStore()
+    processor = new EventProcessor({ bus, eventStore })
     adapter = makeFakeAdapter()
     usageService = new UsageService({ repo: new InMemoryUsageRepository() })
     bot = makeBot()

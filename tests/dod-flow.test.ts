@@ -30,6 +30,7 @@ import { UsageService } from '../src/core/usage/usage.service.js'
 import { AnalyticsService } from '../src/core/usage/analytics.service.js'
 import { EventBus } from '../src/core/events/event-bus.js'
 import { EventProcessor } from '../src/core/events/event-processor.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { AutomationStage } from '../src/core/automation/automation-stage.js'
 import { AutomationEngine } from '../src/core/automation/rule-engine.js'
 import { createWelcomeRule } from '../src/core/automation/rules/welcome.rule.js'
@@ -140,11 +141,13 @@ describe('MVP definition of done (spec §32)', () => {
 
     const credentialService = new CredentialService(credentialRepo)
     const botService = new BotService({ repo: botRepo, credentials: credentialService })
+    const flowEventStore = new InMemoryEventStore()
     roomService = new RoomService({
       repo: roomRepo,
       members: memberRepo,
       deduplicator: new InMemoryMessageDeduplicator(),
-      bus
+      bus,
+      eventStore: flowEventStore
     })
     botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
     usageService = new UsageService({ repo: usageRepo })
@@ -161,7 +164,7 @@ describe('MVP definition of done (spec §32)', () => {
     engine.addRule(createAiRule({ runner: agentService.createRunner() }))
 
     // Wire the real event pipeline onto the same bus RoomService publishes to.
-    processor = new EventProcessor(bus)
+    processor = new EventProcessor({ bus, eventStore: flowEventStore })
     processor.addStage(new AutomationStage({
       engine,
       resolveContext: (event) => botManager.resolveContext(event),

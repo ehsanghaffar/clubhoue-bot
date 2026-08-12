@@ -6,6 +6,41 @@
  */
 import type { Platform } from '../types.js'
 
+/**
+ * Derives a stable, deterministic id for a normalized event so that the same
+ * logical event (e.g. the same platform message) always maps to the same
+ * stored event. This is the idempotency key for the durable event store: a
+ * duplicate event collides on _id and is processed exactly once.
+ *
+ * For message-bearing events we use the platform message id; for membership /
+ * room lifecycle events we combine type + room + the distinguishing entity.
+ * We never rely on randomness or wall-clock timestamps alone.
+ */
+export const deriveEventId = (
+  type: CommunityEventType,
+  roomId: string,
+  payload: Record<string, unknown>
+): string => {
+  const messageId = payload.messageId != null ? String(payload.messageId) : undefined
+  const userId = payload.userId != null ? String(payload.userId) : undefined
+
+  switch (type) {
+    case 'message.created':
+    case 'speaker.requested':
+      return `evt:${type}:${roomId}:${messageId ?? 'unknown'}`
+    case 'user.joined':
+    case 'user.left':
+    case 'speaker.invited':
+      return `evt:${type}:${roomId}:${userId ?? 'unknown'}`
+    case 'room.joined':
+    case 'room.left':
+    case 'room.ended':
+      return `evt:${type}:${roomId}`
+    default:
+      return `evt:${type}:${roomId}:${messageId ?? userId ?? 'unknown'}`
+  }
+}
+
 export type CommunityEventType =
   | 'room.joined'
   | 'room.left'

@@ -13,6 +13,7 @@ import { roomRepository } from './room.repository.js'
 import { roomMemberRepository } from './room-member.repository.js'
 import { messageDeduplicator } from '../../infrastructure/deduplication/message-dedup.js'
 import { eventBus } from '../events/event-bus.js'
+import { eventStore } from '../events/event-store.impl.js'
 import { RoomService } from './room.service.js'
 
 export * from './room.types.js'
@@ -24,5 +25,6 @@ export const roomService = new RoomService({
   repo: roomRepository,
   members: roomMemberRepository,
   deduplicator: messageDeduplicator,
-  bus: eventBus
+  bus: eventBus,
+  eventStore
 })

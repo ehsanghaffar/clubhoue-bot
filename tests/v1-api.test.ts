@@ -16,6 +16,7 @@ import { RoomService } from '../src/core/rooms/room.service.js'
 import { UsageService } from '../src/core/usage/usage.service.js'
 import { AnalyticsService } from '../src/core/usage/analytics.service.js'
 import { EventBus } from '../src/core/events/event-bus.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication/message-dedup.js'
 import {
   InMemoryBotRepository,
@@ -65,7 +66,8 @@ describe('v1 API', () => {
       repo: roomRepo,
       members: memberRepo,
       deduplicator: new InMemoryMessageDeduplicator(),
-      bus
+      bus,
+      eventStore: new InMemoryEventStore()
     })
     const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
     const usageService = new UsageService({ repo: usageRepo })

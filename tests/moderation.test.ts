@@ -16,6 +16,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventBus } from '../src/core/events/event-bus.js'
 import { EventProcessor } from '../src/core/events/event-processor.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { ModerationStage } from '../src/core/moderation/moderation-stage.js'
 import { InMemoryMessageRateLimiter } from '../src/core/moderation/message-rate-limit.js'
 import { AutomationStage } from '../src/core/automation/automation-stage.js'
@@ -100,7 +101,8 @@ interface Harness {
 /** Builds a pipeline: moderation -> automation(AI) -> usage. */
 const buildHarness = (roomOverrides: Partial<BotRoom> = {}): Harness => {
   const bus = new EventBus()
-  const processor = new EventProcessor(bus)
+  const eventStore = new InMemoryEventStore()
+  const processor = new EventProcessor({ bus, eventStore })
   const adapter = makeFakeAdapter()
   const usage = new UsageService({ repo: new InMemoryUsageRepository() })
   const cooldown = new InMemoryAiCooldownStore()

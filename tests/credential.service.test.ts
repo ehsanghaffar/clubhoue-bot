@@ -44,8 +44,8 @@ class InMemoryCredentialRepository implements CredentialRepository {
     return row != null && row.tenantId === tenantId ? row : null
   }
 
-  async findActiveByBot (botId: string): Promise<BotCredential | null> {
-    const rows = [...this.rows.values()].filter((r) => r.botId === botId && r.status === 'active')
+  async findActiveByBot (tenantId: string, botId: string): Promise<BotCredential | null> {
+    const rows = [...this.rows.values()].filter((r) => r.tenantId === tenantId && r.botId === botId && r.status === 'active')
     return rows[rows.length - 1] ?? null
   }
 

@@ -50,8 +50,8 @@ export class CredentialService {
     return await this.repo.findByIdAndTenant(id, tenantId)
   }
 
-  async getActiveByBot (botId: string): Promise<BotCredential | null> {
-    return await this.repo.findActiveByBot(botId)
+  async getActiveByBot (tenantId: string, botId: string): Promise<BotCredential | null> {
+    return await this.repo.findActiveByBot(tenantId, botId)
   }
 
   async revoke (tenantId: string, id: string): Promise<BotCredential | null> {

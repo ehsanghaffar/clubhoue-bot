@@ -32,7 +32,7 @@ const aiConfigSchema = new Schema<AiConfig>(
     triggerMode: {
       type: String,
       enum: ['mention', 'prefix', 'keyword', 'question', 'manual'],
-      default: 'question'
+      default: 'mention'
     },
     triggerPrefix: { type: String, default: '#' },
     cooldownSeconds: { type: Number, default: 30 }

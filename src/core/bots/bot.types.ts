@@ -64,7 +64,7 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   temperature: parseFloat(process.env.OPENAI_TEMPERATURE ?? '0.4'),
   maxOutputTokens: parseInt(process.env.OPENAI_MAX_TOKENS ?? '150', 10),
   maxResponseLength: 280,
-  triggerMode: 'question',
+  triggerMode: 'mention',
   triggerPrefix: '#',
   cooldownSeconds: 30
 }

@@ -111,6 +111,32 @@ describe('BotManager', () => {
     expect((await botRepo.findById(bot.id))?.status).toBe('active')
   })
 
+  it('starts and stops the per-room active ping loop while the room is active', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'room-1' })
+      const ping = vi.fn(async () => {})
+      const runtimeAdapter = {
+        ...adapter,
+        ping
+      }
+      vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+      await botManager.startBot(bot.id)
+      await vi.advanceTimersByTimeAsync(180_000)
+      expect(ping).toHaveBeenCalled()
+
+      await botManager.stopBot(bot.id)
+      const pingCallsAfterStop = ping.mock.calls.length
+      await vi.advanceTimersByTimeAsync(180_000)
+      expect(ping.mock.calls.length).toBe(pingCallsAfterStop)
+      expect((await roomRepo.findById(room.id))?.status).toBe('active')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('startBot is idempotent: no duplicate joins on repeated starts (F-01)', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
     await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'ch_abc' })

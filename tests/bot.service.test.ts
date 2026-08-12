@@ -131,7 +131,7 @@ describe('BotService', () => {
 
     const adapter = await service.createAdapter(bot)
     expect(adapter).toBe(fakeAdapter)
-    expect(credentials.getActiveByBot).toHaveBeenCalledWith(bot.id)
+    expect(credentials.getActiveByBot).toHaveBeenCalledWith(bot.tenantId, bot.id)
     expect(factory).toHaveBeenCalledWith(makeDecrypted())
   })
 

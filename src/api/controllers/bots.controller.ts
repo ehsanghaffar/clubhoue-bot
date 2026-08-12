@@ -157,7 +157,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
         next(createNotFoundError('Bot not found'))
         return
       }
-      const externalId = await deps.botService.getBotExternalUserId(bot.id)
+      const externalId = await deps.botService.getBotExternalUserId(bot.tenantId, bot.id)
       if (externalId == null) {
         next(createBadRequestError('Bot has no active credential'))
         return

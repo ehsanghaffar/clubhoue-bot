@@ -35,6 +35,15 @@ interface LoopEntry {
 }
 
 const DEFAULT_SYNC_INTERVAL_MS = parseInt(process.env.ROOM_SYNC_INTERVAL_MS ?? '15000', 10)
+const DEFAULT_ACTIVE_PING_INTERVAL_MS = clampActivePingInterval(process.env.ACTIVE_PING_INTERVAL_MS ?? '180000')
+
+function clampActivePingInterval (value: string): number {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed)) {
+    return 180000
+  }
+  return Math.min(Math.max(parsed, 120000), 300000)
+}
 
 /**
  * Owns the per-bot runtime: builds an adapter per active bot, starts/stops the
@@ -58,11 +67,11 @@ export class BotManager {
     }
 
     const adapter = await this.deps.botService.createAdapter(bot)
-    const botUserId = await this.deps.botService.getBotExternalUserId(botId)
+    const botUserId = await this.deps.botService.getBotExternalUserId(bot.tenantId, bot.id)
 
     this.runtimes.set(botId, { bot, adapter, botUserId })
 
-    const rooms = await this.deps.rooms.findByBot(botId)
+    const rooms = await this.deps.rooms.findByBotAndTenant(botId, bot.tenantId)
     for (const room of rooms) {
       if (room.status !== 'active' && room.status !== 'joining') {
         try {
@@ -84,7 +93,7 @@ export class BotManager {
   async stopBot (botId: string): Promise<void> {
     const runtime = this.runtimes.get(botId)
     for (const [key, entry] of this.loops) {
-      if (key.startsWith(`${botId}:`)) {
+      if (key.startsWith(`${botId}:`) || key.startsWith(`${botId}:`)) {
         clearInterval(entry.interval)
         this.loops.delete(key)
       }
@@ -157,10 +166,18 @@ export class BotManager {
     if (runtime == null) {
       return
     }
+    const room = await this.deps.rooms.findById(roomId)
+    if (room == null || room.botId !== botId || room.status !== 'active') {
+      return
+    }
     if (runtime.adapter.ping == null) {
       return
     }
-    await runtime.adapter.ping(roomId)
+    try {
+      await runtime.adapter.ping(room.externalRoomId)
+    } catch (error) {
+      logger.warn('Active ping failed for room; keeping runtime alive for retry', { botId, roomId, externalRoomId: room.externalRoomId, error })
+    }
   }
 
   /** Invites a user to speak in a running bot's room (speaker-invite job). */
@@ -177,10 +194,17 @@ export class BotManager {
     if (this.loops.has(key)) {
       return
     }
-    const interval = setInterval(() => {
+    const syncInterval = setInterval(() => {
       void this.syncRoom(room.id, adapter)
     }, DEFAULT_SYNC_INTERVAL_MS)
-    this.loops.set(key, { roomId: room.id, interval })
+    const pingInterval = adapter.ping == null ? null : setInterval(() => {
+      void this.pingRoom(bot.id, room.id)
+    }, DEFAULT_ACTIVE_PING_INTERVAL_MS)
+
+    if (pingInterval != null) {
+      this.loops.set(`${key}:ping`, { roomId: room.id, interval: pingInterval })
+    }
+    this.loops.set(key, { roomId: room.id, interval: syncInterval })
   }
 
   private async syncRoom (roomId: string, adapter: CommunityPlatformAdapter): Promise<void> {

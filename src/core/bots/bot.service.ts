@@ -48,7 +48,7 @@ export class BotService {
    * when the bot has no active credential.
    */
   async createAdapter (bot: Bot): Promise<CommunityPlatformAdapter> {
-    const credential = await this.deps.credentials.getActiveByBot(bot.id)
+    const credential = await this.deps.credentials.getActiveByBot(bot.tenantId, bot.id)
     if (credential == null) {
       throw new Error(`No active credential for bot ${bot.id}`)
     }
@@ -59,9 +59,21 @@ export class BotService {
   /**
    * The bot's external user id on the platform (from its active credential),
    * used to suppress the bot's own messages in automation.
+   *
+   * Accepts both the tenant-aware runtime signature and the legacy single-arg
+   * form used by older callers, while preserving the tenant-safe runtime lookup.
    */
-  async getBotExternalUserId (botId: string): Promise<string | undefined> {
-    const credential = await this.deps.credentials.getActiveByBot(botId)
+  async getBotExternalUserId (tenantIdOrBotId: string, maybeBotId?: string): Promise<string | undefined> {
+    if (maybeBotId == null) {
+      const bot = await this.deps.repo.findById(tenantIdOrBotId)
+      if (bot == null) {
+        return undefined
+      }
+      const credential = await this.deps.credentials.getActiveByBot(bot.tenantId, bot.id)
+      return credential?.externalAccountId
+    }
+
+    const credential = await this.deps.credentials.getActiveByBot(tenantIdOrBotId, maybeBotId)
     return credential?.externalAccountId
   }
 }

@@ -40,6 +40,7 @@ import { AgentService } from '../src/core/ai/agent.service.js'
 import { AiService } from '../src/core/ai/ai.service.js'
 import { InMemoryAiCooldownStore } from '../src/core/ai/in-memory-cooldown.js'
 import { UsageStage } from '../src/core/usage/usage-stage.js'
+import { InMemoryActionIdempotencyStore } from '../src/core/events/action-idempotency.js'
 import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication/message-dedup.js'
 import { registerAdapterFactory } from '../src/platforms/adapter.js'
 import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
@@ -149,7 +150,7 @@ describe('MVP definition of done (spec §32)', () => {
       bus,
       eventStore: flowEventStore
     })
-    botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     usageService = new UsageService({ repo: usageRepo })
     const analyticsService = new AnalyticsService({ usage: usageRepo, rooms: roomRepo, members: memberRepo })
 
@@ -157,11 +158,13 @@ describe('MVP definition of done (spec §32)', () => {
     const ai = new AiService({ provider: makeFakeProvider(), cooldown: new InMemoryAiCooldownStore() })
     const agentService = new AgentService({ ai, usage: usageService })
 
+    const actions = new InMemoryActionIdempotencyStore()
+
     // Real automation engine: welcome + speaker (allow-list) + AI Q&A.
     const engine = new AutomationEngine()
-    engine.addRule(createWelcomeRule())
-    engine.addRule(createSpeakerRule({ allowList: new Set(['u1']) }))
-    engine.addRule(createAiRule({ runner: agentService.createRunner() }))
+    engine.addRule(createWelcomeRule({ actions }))
+    engine.addRule(createSpeakerRule({ allowList: new Set(['u1']), actions }))
+    engine.addRule(createAiRule({ runner: agentService.createRunner(), actions }))
 
     // Wire the real event pipeline onto the same bus RoomService publishes to.
     processor = new EventProcessor({ bus, eventStore: flowEventStore })

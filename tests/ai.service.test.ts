@@ -10,6 +10,7 @@ import { AgentService } from '../src/core/ai/agent.service.js'
 import { InMemoryAiCooldownStore } from '../src/core/ai/in-memory-cooldown.js'
 import { buildAiPrompt } from '../src/core/ai/prompt.service.js'
 import type { AiProvider } from '../src/core/ai/ai.types.js'
+import type { AiDecisionContext } from '../src/core/ai/ai.service.js'
 import type { Bot } from '../src/core/bots/bot.types.js'
 import type { BotRoom } from '../src/core/rooms/room.types.js'
 import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
@@ -41,6 +42,15 @@ const makeRoom = (overrides: Partial<BotRoom> = {}): BotRoom => ({
   ...overrides
 })
 
+const makeCtx = (content: string, overrides: Partial<AiDecisionContext> = {}): AiDecisionContext => ({
+  tenantId: 'tenant-1',
+  roomId: 'room-1',
+  userId: 'u-1',
+  mentionIdentity: { externalAccountId: 'ext-bot', externalAccountName: 'helper' },
+  mentionInput: { content },
+  ...overrides
+})
+
 const makeFakeProvider = (answer = '42 Jan'): AiProvider => ({
   complete: vi.fn(async () => answer)
 })
@@ -55,47 +65,47 @@ describe('AiService.decide (trigger modes)', () => {
   it('responds to questions in default question mode', () => {
     const { ai } = makeService()
     const bot = makeBot()
-    expect(ai.decide(bot, 'what is the capital of France?').respond).toBe(true)
-    expect(ai.decide(bot, 'چرا آسمون آبیه؟').respond).toBe(true)
+    expect(ai.decide(bot, makeCtx('what is the capital of France?')).respond).toBe(true)
+    expect(ai.decide(bot, makeCtx('چرا آسمون آبیه؟')).respond).toBe(true)
   })
 
   it('does not respond to non-questions in question mode', () => {
     const { ai } = makeService()
-    expect(ai.decide(makeBot(), 'hello everyone').respond).toBe(false)
+    expect(ai.decide(makeBot(), makeCtx('hello everyone')).respond).toBe(false)
   })
 
   it('responds only with the prefix in prefix mode', () => {
     const { ai } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, triggerMode: 'prefix' } })
-    expect(ai.decide(bot, '#what is love').respond).toBe(true)
-    expect(ai.decide(bot, 'what is love').respond).toBe(false)
+    expect(ai.decide(bot, makeCtx('#what is love')).respond).toBe(true)
+    expect(ai.decide(bot, makeCtx('what is love')).respond).toBe(false)
   })
 
   it('responds to mentions in mention mode', () => {
     const { ai } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, triggerMode: 'mention' } })
-    expect(ai.decide(bot, '@Helper tell me a joke').respond).toBe(true)
-    expect(ai.decide(bot, 'tell me a joke').respond).toBe(false)
+    expect(ai.decide(bot, makeCtx('@helper tell me a joke')).respond).toBe(true)
+    expect(ai.decide(bot, makeCtx('tell me a joke')).respond).toBe(false)
   })
 
-  it('matches real-world Clubhouse mention formatting case-insensitively, including spaced display names', () => {
+  it('matches real-world Clubhouse mention formatting case-insensitively without false positives', () => {
     const { ai } = makeService()
     const bot = makeBot({ name: 'My Bot', aiConfig: { ...makeBot().aiConfig, triggerMode: 'mention' } })
-    expect(ai.decide(bot, '@my bot tell me a joke').respond).toBe(true)
-    expect(ai.decide(bot, 'hello @MY BOT please help').respond).toBe(true)
-    expect(ai.decide(bot, 'tell me a joke').respond).toBe(false)
+    expect(ai.decide(bot, makeCtx('hello @HELPER please help')).respond).toBe(true)
+    expect(ai.decide(bot, makeCtx('My Bot is great')).respond).toBe(false)
+    expect(ai.decide(bot, makeCtx('@helper123 please')).respond).toBe(false)
   })
 
   it('never auto-responds in manual mode', () => {
     const { ai } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, triggerMode: 'manual' } })
-    expect(ai.decide(bot, 'what is 2+2?').respond).toBe(false)
+    expect(ai.decide(bot, makeCtx('what is 2+2?')).respond).toBe(false)
   })
 
   it('returns disabled when aiConfig.enabled is false', () => {
     const { ai } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, enabled: false } })
-    expect(ai.decide(bot, 'what is 2+2?').reason).toBe('disabled')
+    expect(ai.decide(bot, makeCtx('what is 2+2?')).reason).toBe('disabled')
   })
 })
 
@@ -103,11 +113,12 @@ describe('AiService cooldown + generation', () => {
   it('enforces cooldown after a response', () => {
     const { ai, cooldown } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, cooldownSeconds: 60 } })
-    expect(ai.canRespond(bot, 'room-1', 'what is 2+2?').respond).toBe(true)
-    ai.markResponded(bot, 'room-1')
-    expect(ai.canRespond(bot, 'room-1', 'what is 2+2?').reason).toBe('cooldown')
+    const ctx = makeCtx('what is 2+2?')
+    expect(ai.canRespond(bot, ctx).respond).toBe(true)
+    ai.markResponded('tenant-1', bot.id, 'room-1', 'u-1')
+    expect(ai.canRespond(bot, ctx).reason).toBe('cooldown')
     cooldown.clear()
-    expect(ai.canRespond(bot, 'room-1', 'what is 2+2?').respond).toBe(true)
+    expect(ai.canRespond(bot, ctx).respond).toBe(true)
   })
 
   it('truncates long responses to maxResponseLength', async () => {
@@ -169,7 +180,7 @@ describe('AgentService runner', () => {
       inviteSpeaker: vi.fn(),
       acceptSpeakerInvite: vi.fn()
     }
-    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter, botUserId: 'bot-own-id' })
+    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter, botUserId: 'bot-own-id', externalAccountName: 'helper' })
     const result = await runner(makeEvent('bot-own-id', 'what is 2+2?'), context)
     expect(result).toBeNull()
   })
@@ -190,7 +201,7 @@ describe('AgentService runner', () => {
       inviteSpeaker: vi.fn(),
       acceptSpeakerInvite: vi.fn()
     }
-    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter })
+    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter, externalAccountName: 'helper' })
     const result = await runner(makeEvent('u-1', 'just chatting'), context)
     expect(result).toBeNull()
   })
@@ -211,9 +222,9 @@ describe('AgentService runner', () => {
       inviteSpeaker: vi.fn(),
       acceptSpeakerInvite: vi.fn()
     }
-    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter })
+    const context = createRuleContext({ bot: makeBot(), room: makeRoom(), adapter, externalAccountName: 'helper' })
     const result = await runner(makeEvent('u-1', 'what is 42?'), context)
     expect(result).toBe('The answer is 42.')
-    expect(cooldown.isOnCooldown('bot-1', 'room-1', 30)).toBe(true)
+    expect(cooldown.isOnCooldown('tenant-1', 'bot-1', 'room-1', 'u-1', 30)).toBe(true)
   })
 })

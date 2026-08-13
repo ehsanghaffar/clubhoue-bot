@@ -5,6 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import { describe, expect, it, vi } from 'vitest'
+import { continueStage } from '../src/core/events/event-processor.js'
 import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { MAX_EVENT_ATTEMPTS } from '../src/core/events/event-store.js'
 
@@ -147,7 +148,7 @@ describe('EventProcessor + EventStore integration (crash recovery)', () => {
     const store = new InMemoryEventStore()
     const processor = new EventProcessor({ bus, eventStore: store })
     const handled = vi.fn()
-    processor.addStage({ name: 'probe', handle: handled })
+    processor.addStage({ name: 'probe', handle: async () => { handled(); return continueStage() } })
     processor.start()
 
     bus.publish(makeEvent('evt-1'))
@@ -168,7 +169,7 @@ describe('EventProcessor + EventStore integration (crash recovery)', () => {
 
     const handled = vi.fn()
     const processor = new EventProcessor({ bus, eventStore: store })
-    processor.addStage({ name: 'probe', handle: handled })
+    processor.addStage({ name: 'probe', handle: async () => { handled(); return continueStage() } })
     processor.start()
 
     await vi.waitFor(() => {
@@ -185,7 +186,7 @@ describe('EventProcessor + EventStore integration (crash recovery)', () => {
     const store = new InMemoryEventStore()
     const processor = new EventProcessor({ bus, eventStore: store })
     const handled = vi.fn()
-    processor.addStage({ name: 'probe', handle: handled })
+    processor.addStage({ name: 'probe', handle: async () => { handled(); return continueStage() } })
     processor.start()
 
     bus.publish(makeEvent('dup'))

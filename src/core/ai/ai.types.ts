@@ -35,8 +35,40 @@ export interface AiResponse {
   truncated: boolean
 }
 
-/** Stable cooldown window per bot+room. */
+/** Per-user cooldown window scoped by tenant+bot+room+user. */
 export interface AiCooldownStore {
-  isOnCooldown: (botId: string, roomId: string, windowSeconds: number) => boolean
-  markResponded: (botId: string, roomId: string) => void
+  isOnCooldown: (
+    tenantId: string,
+    botId: string,
+    roomId: string,
+    userId: string,
+    windowSeconds: number
+  ) => boolean
+  tryReserve: (
+    tenantId: string,
+    botId: string,
+    roomId: string,
+    userId: string,
+    windowSeconds: number
+  ) => boolean
+  markResponded: (tenantId: string, botId: string, roomId: string, userId: string) => void
+  release: (tenantId: string, botId: string, roomId: string, userId: string) => void
+}
+
+export type AiProviderFailureKind =
+  | 'timeout'
+  | 'rate_limited'
+  | 'transient'
+  | 'authentication'
+  | 'invalid_request'
+  | 'permanent'
+
+export class AiProviderError extends Error {
+  readonly kind: AiProviderFailureKind
+
+  constructor (kind: AiProviderFailureKind, message = kind) {
+    super(message)
+    this.name = 'AiProviderError'
+    this.kind = kind
+  }
 }

@@ -9,7 +9,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClubhouseAdapter } from '../src/platforms/clubhouse/adapter.js'
-import { AdapterError } from '../src/platforms/adapter.js'
+import { AdapterError, createPlatformAdapter } from '../src/platforms/adapter.js'
+import { registerBuiltinAdapters } from '../src/platforms/register.js'
 
 vi.mock('../src/platforms/clubhouse/agent.js', () => ({
   default: vi.fn()
@@ -161,5 +162,17 @@ describe('ClubhouseAdapter', () => {
     await expect(adapter.searchUsers('sa')).rejects.toBeInstanceOf(AdapterError)
     await expect(adapter.inviteSpeaker('ch_abc', 'u1')).rejects.toBeInstanceOf(AdapterError)
     await expect(adapter.acceptSpeakerInvite('ch_abc')).rejects.toBeInstanceOf(AdapterError)
+  })
+})
+
+describe('builtin adapter registration', () => {
+  it('registers clubhouse so createPlatformAdapter can build an adapter', () => {
+    registerBuiltinAdapters()
+    const adapter = createPlatformAdapter('clubhouse', {
+      token: 'tok-123',
+      externalAccountId: 'ext-1',
+      externalAccountName: 'Sara'
+    })
+    expect(adapter.platform).toBe('clubhouse')
   })
 })

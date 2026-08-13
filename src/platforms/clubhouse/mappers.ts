@@ -38,12 +38,18 @@ export const mapUser = (raw: UserResponse): User => {
 
 export const mapMessage = (raw: ClubhouseMessage, roomId: string): Message => {
   const created = typeof raw.time_created === 'number' ? raw.time_created : undefined
+  const mentionedUserIds = Array.isArray(raw.mentioned_user_ids)
+    ? raw.mentioned_user_ids.map((id) => String(id))
+    : undefined
   return {
     id: stringId(raw.message_id),
     roomId,
     userId: stringId(raw.user_profile?.user_id),
+    username: raw.user_profile?.username,
+    displayName: raw.user_profile?.name,
     content: raw.message ?? '',
-    timestamp: created != null ? new Date(created * 1000) : new Date()
+    timestamp: created != null ? new Date(created * 1000) : new Date(),
+    mentionedUserIds
   }
 }
 

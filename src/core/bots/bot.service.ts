@@ -59,21 +59,9 @@ export class BotService {
   /**
    * The bot's external user id on the platform (from its active credential),
    * used to suppress the bot's own messages in automation.
-   *
-   * Accepts both the tenant-aware runtime signature and the legacy single-arg
-   * form used by older callers, while preserving the tenant-safe runtime lookup.
    */
-  async getBotExternalUserId (tenantIdOrBotId: string, maybeBotId?: string): Promise<string | undefined> {
-    if (maybeBotId == null) {
-      const bot = await this.deps.repo.findById(tenantIdOrBotId)
-      if (bot == null) {
-        return undefined
-      }
-      const credential = await this.deps.credentials.getActiveByBot(bot.tenantId, bot.id)
-      return credential?.externalAccountId
-    }
-
-    const credential = await this.deps.credentials.getActiveByBot(tenantIdOrBotId, maybeBotId)
+  async getBotExternalUserId (tenantId: string, botId: string): Promise<string | undefined> {
+    const credential = await this.deps.credentials.getActiveByBot(tenantId, botId)
     return credential?.externalAccountId
   }
 }

@@ -11,6 +11,7 @@ import type {
   CommunityPlatformAdapter
 } from '../adapter.js'
 import { AdapterError } from '../adapter.js'
+import { ClubhouseApiError } from './errors.js'
 import agent from './agent.js'
 import { ClubApiService } from './api.service.js'
 import { mapMessages, mapRoom, mapUser } from './mappers.js'
@@ -127,6 +128,15 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
   }
 
   private toAdapterError (op: string, cause: unknown): AdapterError {
+    if (cause instanceof ClubhouseApiError) {
+      logger.error(`Clubhouse adapter ${op} failed`, {
+        operation: cause.operation,
+        status: cause.status,
+        kind: cause.kind,
+        retryable: cause.retryable
+      })
+      return new AdapterError(`Clubhouse ${op} failed`, cause)
+    }
     const message = cause instanceof Error ? cause.message : String(cause)
     logger.error(`Clubhouse adapter ${op} failed`, { error: message })
     return new AdapterError(`Clubhouse ${op} failed: ${message}`, cause)

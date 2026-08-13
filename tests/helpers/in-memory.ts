@@ -129,6 +129,13 @@ export class InMemoryRoomRepository implements RoomRepository {
     return [...this.rows.values()].filter((r) => r.botId === botId && r.tenantId === tenantId).map(clone)
   }
 
+  async findByExternalRoomId (tenantId: string, botId: string, externalRoomId: string): Promise<BotRoom | null> {
+    const row = [...this.rows.values()].find((r) =>
+      r.tenantId === tenantId && r.botId === botId && r.externalRoomId === externalRoomId
+    )
+    return row == null ? null : clone(row)
+  }
+
   async findByStatus (status: string): Promise<BotRoom[]> {
     return [...this.rows.values()].filter((r) => r.status === status).map(clone)
   }

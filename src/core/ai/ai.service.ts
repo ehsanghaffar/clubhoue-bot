@@ -4,15 +4,17 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
+import type { Bot } from '../bots/bot.types.js'
 import type {
   AiCooldownStore,
   AiDecision,
   AiProvider,
   AiResponse
 } from './ai.types.js'
-import type { Bot } from '../bots/bot.types.js'
+import type { MentionIdentity, MentionInput } from './mention-detector.js'
 import { resolveAiConfig } from '../bots/bot.types.js'
 import { buildAiPrompt } from './prompt.service.js'
+import { mentionDetector } from './mention-detector.js'
 
 export interface AiServiceDeps {
   provider: AiProvider
@@ -25,32 +27,6 @@ const QUESTION_WORDS_FA = ['چرا', 'چه', 'کجا', 'کی', 'چطور', 'چگ
 const QUESTION_MARK = '?'
 const QUESTION_MARK_FA = '؟'
 
-const normalizeMentionText = (value: string): string => value
-  .normalize('NFKC')
-  .trim()
-  .replace(/\s+/g, ' ')
-  .toLowerCase()
-
-const mentionsBot = (text: string, botName: string): boolean => {
-  const normalizedText = normalizeMentionText(text)
-  const normalizedBotName = normalizeMentionText(botName)
-  if (normalizedBotName.length === 0) {
-    return false
-  }
-  const variants = new Set<string>([
-    `@${normalizedBotName}`,
-    normalizedBotName,
-    ...normalizedBotName.split(' ').filter(Boolean).map((part) => `@${part}`)
-  ])
-
-  for (const variant of variants) {
-    if (normalizedText.includes(variant)) {
-      return true
-    }
-  }
-  return normalizedText.includes(`@${normalizedBotName.replace(/\s+/g, '')}`)
-}
-
 const looksLikeQuestion = (content: string): boolean => {
   const lower = content.toLowerCase()
   if (content.includes(QUESTION_MARK) || content.includes(QUESTION_MARK_FA)) {
@@ -58,6 +34,14 @@ const looksLikeQuestion = (content: string): boolean => {
   }
   return QUESTION_WORDS_EN.some((w) => lower.includes(w)) ||
     QUESTION_WORDS_FA.some((w) => lower.includes(w))
+}
+
+export interface AiDecisionContext {
+  tenantId: string
+  roomId: string
+  userId: string
+  mentionIdentity: MentionIdentity
+  mentionInput: MentionInput
 }
 
 /**
@@ -69,16 +53,16 @@ export class AiService {
   constructor (private readonly deps: AiServiceDeps) {}
 
   /**
-   * Trigger-mode decision (ignores cooldown). The message content is the raw
-   * text from the platform event payload.
+   * Trigger-mode decision (ignores cooldown). Uses platform mention identity,
+   * never the internal bot label.
    */
-  decide (bot: Bot, content: string): AiDecision {
+  decide (bot: Bot, ctx: AiDecisionContext): AiDecision {
     const ai = resolveAiConfig(bot.aiConfig)
     if (!ai.enabled) {
       return { respond: false, reason: 'disabled' }
     }
 
-    const text = content.trim()
+    const text = ctx.mentionInput.content.trim()
     switch (ai.triggerMode) {
       case 'manual':
         return { respond: false, reason: 'no_trigger' }
@@ -86,11 +70,10 @@ export class AiService {
         return text.startsWith(ai.triggerPrefix)
           ? { respond: true, reason: 'ok' }
           : { respond: false, reason: 'no_trigger' }
-      case 'mention': {
-        return mentionsBot(text, bot.name)
+      case 'mention':
+        return mentionDetector.isMentioned(ctx.mentionInput, ctx.mentionIdentity)
           ? { respond: true, reason: 'ok' }
           : { respond: false, reason: 'no_trigger' }
-      }
       case 'keyword':
         return looksLikeQuestion(text)
           ? { respond: true, reason: 'ok' }
@@ -105,23 +88,34 @@ export class AiService {
   }
 
   /**
-   * Full decision: trigger mode + cooldown. Returns 'cooldown' when the
-   * bot+room is within its window.
+   * Full decision: trigger mode + per-user cooldown. Uses atomic reservation
+   * so concurrent messages from the same user cannot bypass the window.
    */
-  canRespond (bot: Bot, roomId: string, content: string): AiDecision {
-    const decision = this.decide(bot, content)
+  canRespond (bot: Bot, ctx: AiDecisionContext): AiDecision {
+    const decision = this.decide(bot, ctx)
     if (!decision.respond) {
       return decision
     }
     const ai = resolveAiConfig(bot.aiConfig)
-    if (this.deps.cooldown.isOnCooldown(bot.id, roomId, ai.cooldownSeconds)) {
+    const reserved = this.deps.cooldown.tryReserve(
+      ctx.tenantId,
+      bot.id,
+      ctx.roomId,
+      ctx.userId,
+      ai.cooldownSeconds
+    )
+    if (!reserved) {
       return { respond: false, reason: 'cooldown' }
     }
     return decision
   }
 
-  markResponded (bot: Bot, roomId: string): void {
-    this.deps.cooldown.markResponded(bot.id, roomId)
+  markResponded (tenantId: string, botId: string, roomId: string, userId: string): void {
+    this.deps.cooldown.markResponded(tenantId, botId, roomId, userId)
+  }
+
+  releaseCooldown (tenantId: string, botId: string, roomId: string, userId: string): void {
+    this.deps.cooldown.release(tenantId, botId, roomId, userId)
   }
 
   /**

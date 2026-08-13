@@ -13,7 +13,7 @@ import { createAiRule } from '../src/core/automation/rules/ai.rule.js'
 import type { CommunityEvent } from '../src/core/events/event.types.js'
 import type { Bot } from '../src/core/bots/bot.types.js'
 import type { BotRoom } from '../src/core/rooms/room.types.js'
-import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
+import { InMemoryActionIdempotencyStore } from '../src/core/events/action-idempotency.js'
 
 const makeBot = (overrides: Partial<Bot> = {}): Bot => ({
   id: 'bot-1',
@@ -74,16 +74,19 @@ describe('AutomationEngine', () => {
   let adapter: ReturnType<typeof makeFakeAdapter>
   let bot: Bot
   let room: BotRoom
+  let actions: InMemoryActionIdempotencyStore
 
   beforeEach(() => {
     adapter = makeFakeAdapter()
     bot = makeBot()
     room = makeRoom()
+    actions = new InMemoryActionIdempotencyStore()
+    actions.clear()
   })
 
   it('sends a welcome message on user.joined with {username} substituted', async () => {
     bot.welcomeMessage = 'Hello {username}!'
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const event = makeEvent('user.joined', { userId: 'u-9', username: 'Sara' })
     const results = await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.sent).toEqual(['Hello Sara!'])
@@ -91,7 +94,7 @@ describe('AutomationEngine', () => {
   })
 
   it('uses the default welcome message when no template is set', async () => {
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const event = makeEvent('user.joined', { userId: 'u-9', username: 'Sara' })
     await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.sent).toEqual([DEFAULT_WELCOME_MESSAGE.replace('{username}', 'Sara')])
@@ -99,7 +102,7 @@ describe('AutomationEngine', () => {
 
   it('skips welcome when welcomeEnabled is false', async () => {
     room = makeRoom({ settings: { ...room.settings, welcomeEnabled: false } })
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const event = makeEvent('user.joined', { userId: 'u-9', username: 'Sara' })
     const results = await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.sent).toEqual([])
@@ -107,7 +110,7 @@ describe('AutomationEngine', () => {
   })
 
   it('does not welcome on other event types', async () => {
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     await engine.evaluate(makeEvent('message.created', {}), createRuleContext({ bot, room, adapter }))
     expect(adapter.sent).toEqual([])
   })
@@ -115,7 +118,7 @@ describe('AutomationEngine', () => {
   it('invites allow-listed users who request the stage', async () => {
     room = makeRoom({ settings: { ...room.settings, autoInviteEnabled: true } })
     const allowList = new Set(['u-1', 'u-2'])
-    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList })] })
+    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList, actions })] })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'اجازه میدم بالا ببرم؟', timestamp: new Date() })
     const results = await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.invited).toEqual(['u-1'])
@@ -125,7 +128,7 @@ describe('AutomationEngine', () => {
   it('skips users not on the allow list', async () => {
     room = makeRoom({ settings: { ...room.settings, autoInviteEnabled: true } })
     const allowList = new Set(['u-2'])
-    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList })] })
+    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList, actions })] })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'invite me please', timestamp: new Date() })
     await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.invited).toEqual([])
@@ -133,7 +136,7 @@ describe('AutomationEngine', () => {
 
   it('dedupes invites per session', async () => {
     room = makeRoom({ settings: { ...room.settings, autoInviteEnabled: true } })
-    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList: new Set(['u-1']) })] })
+    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList: new Set(['u-1']), actions })] })
     const context = createRuleContext({ bot, room, adapter })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'stage please', timestamp: new Date() })
     await engine.evaluate(event, context)
@@ -142,7 +145,7 @@ describe('AutomationEngine', () => {
   })
 
   it('does not invite when autoInviteEnabled is false', async () => {
-    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList: new Set(['u-1']) })] })
+    const engine = new AutomationEngine({ rules: [createSpeakerRule({ allowList: new Set(['u-1']), actions })] })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'invite me', timestamp: new Date() })
     await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
     expect(adapter.invited).toEqual([])
@@ -150,7 +153,7 @@ describe('AutomationEngine', () => {
 
   it('sends the AI answer when the runner produces one', async () => {
     const engine = new AutomationEngine({
-      rules: [createAiRule({ runner: async () => 'The answer is 42.' })]
+      rules: [createAiRule({ runner: async () => 'The answer is 42.', actions })]
     })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'What is 6x7?', timestamp: new Date() })
     const results = await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
@@ -160,7 +163,7 @@ describe('AutomationEngine', () => {
 
   it('sends nothing when the AI runner returns null', async () => {
     const engine = new AutomationEngine({
-      rules: [createAiRule({ runner: async () => null })]
+      rules: [createAiRule({ runner: async () => null, actions })]
     })
     const event = makeEvent('message.created', { messageId: 'm-1', userId: 'u-1', content: 'not a question', timestamp: new Date() })
     const results = await engine.evaluate(event, createRuleContext({ bot, room, adapter }))
@@ -169,7 +172,7 @@ describe('AutomationEngine', () => {
   })
 
   it('isolates a throwing rule from others', async () => {
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     // inject a throwing rule
     engine.addRule({
       id: 'boom',

@@ -6,18 +6,14 @@
  */
 import type { AutomationActionResult, AutomationRule, RuleContext } from '../automation.types.js'
 import type { CommunityEvent } from '../../events/event.types.js'
+import type { ActionIdempotencyStore } from '../../events/action-idempotency.js'
+import { buildActionKey } from '../../events/action-idempotency.js'
 import { resolveRoomSettings } from '../../rooms/room.types.js'
 import { resolveAiConfig } from '../../bots/bot.types.js'
 
 const AI_RULE_ID = 'ai-answer'
 const AI_RULE_NAME = 'AI Q&A'
 
-/**
- * Produces a response for a message if one should be given. Returns `null`
- * when no response is warranted (not triggered, cooldown active, etc.). The
- * concrete implementation is provided by the AI service (Phase H) so the
- * automation engine stays decoupled from any specific provider.
- */
 export type AiRunner = (
   event: CommunityEvent,
   context: RuleContext
@@ -25,13 +21,9 @@ export type AiRunner = (
 
 export interface AiRuleDeps {
   runner: AiRunner
+  actions: ActionIdempotencyStore
 }
 
-/**
- * Answers user questions with the AI when the room's `aiEnabled` and the
- * bot's `aiConfig.enabled` are both true. The response is sent via
- * `context.sendMessage` so rules stay platform-agnostic.
- */
 export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
   id: AI_RULE_ID,
   name: AI_RULE_NAME,
@@ -43,17 +35,29 @@ export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
       return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: false }
     }
 
-    const answer = await deps.runner(event, context)
-    if (answer == null) {
-      return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: false }
+    const key = buildActionKey(event.id, AI_RULE_ID, 'ai_response')
+    const claimed = await deps.actions.claim(event.tenantId, key)
+    if (!claimed) {
+      return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: true }
     }
 
-    await context.sendMessage(answer)
-    return {
-      ruleId: AI_RULE_ID,
-      ruleName: AI_RULE_NAME,
-      action: 'ai_response',
-      success: true
+    try {
+      const answer = await deps.runner(event, context)
+      if (answer == null) {
+        await deps.actions.release(event.tenantId, key)
+        return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: false }
+      }
+      await context.sendMessage(answer)
+      await deps.actions.markExecuted(event.tenantId, key)
+      return {
+        ruleId: AI_RULE_ID,
+        ruleName: AI_RULE_NAME,
+        action: 'ai_response',
+        success: true
+      }
+    } catch (error) {
+      await deps.actions.release(event.tenantId, key)
+      throw error
     }
   }
 })

@@ -21,7 +21,7 @@ import { UsageService } from '../src/core/usage/usage.service.js'
 import type { CommunityEvent } from '../src/core/events/event.types.js'
 import type { Bot } from '../src/core/bots/bot.types.js'
 import type { BotRoom } from '../src/core/rooms/room.types.js'
-import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
+import { InMemoryActionIdempotencyStore } from '../src/core/events/action-idempotency.js'
 
 const makeBot = (overrides: Partial<Bot> = {}): Bot => ({
   id: 'bot-1',
@@ -89,6 +89,8 @@ describe('automation pipeline', () => {
   let room: BotRoom
   let eventStore: InMemoryEventStore
 
+  let actions: InMemoryActionIdempotencyStore
+
   beforeEach(() => {
     bus = new EventBus()
     eventStore = new InMemoryEventStore()
@@ -97,6 +99,8 @@ describe('automation pipeline', () => {
     usageService = new UsageService({ repo: new InMemoryUsageRepository() })
     bot = makeBot()
     room = makeRoom()
+    actions = new InMemoryActionIdempotencyStore()
+    actions.clear()
   })
 
   afterEach(() => {
@@ -104,7 +108,7 @@ describe('automation pipeline', () => {
   })
 
   it('runs the welcome rule end-to-end and records automation usage', async () => {
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const stage = new AutomationStage({
       engine,
       resolveContext: async () => createRuleContext({ bot, room, adapter }),
@@ -124,7 +128,7 @@ describe('automation pipeline', () => {
   })
 
   it('uses the default welcome template when the bot has no custom message', async () => {
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const stage = new AutomationStage({
       engine,
       resolveContext: async () => createRuleContext({ bot, room, adapter }),
@@ -142,7 +146,7 @@ describe('automation pipeline', () => {
 
   it('skips event types outside the automation set without resolving context', async () => {
     const resolveContext = vi.fn(async () => createRuleContext({ bot, room, adapter }))
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const stage = new AutomationStage({ engine, resolveContext, usage: usageService })
     processor.addStage(stage)
     processor.start()
@@ -157,7 +161,7 @@ describe('automation pipeline', () => {
 
   it('does not record usage when context resolution fails', async () => {
     const resolveContext = vi.fn(async () => null)
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const stage = new AutomationStage({ engine, resolveContext, usage: usageService })
     processor.addStage(stage)
     processor.start()
@@ -170,12 +174,12 @@ describe('automation pipeline', () => {
     expect((await usageService.summarize(bot.id)).automationActions).toBe(0)
   })
 
-  it('continues to later stages when an earlier stage throws', async () => {
+  it('stops the pipeline when an earlier stage throws', async () => {
     const failing = {
       name: 'failing',
       handle: vi.fn(async () => { throw new Error('boom') })
     }
-    const engine = new AutomationEngine({ rules: [createWelcomeRule()] })
+    const engine = new AutomationEngine({ rules: [createWelcomeRule({ actions })] })
     const stage = new AutomationStage({
       engine,
       resolveContext: async () => createRuleContext({ bot, room, adapter }),
@@ -187,9 +191,8 @@ describe('automation pipeline', () => {
 
     bus.publish(makeEvent('user.joined', { userId: 'u-9', username: 'Sara' }))
 
-    await vi.waitFor(() => {
-      expect(adapter.sent).toEqual([DEFAULT_WELCOME_MESSAGE.replaceAll('{username}', 'Sara')])
-    })
+    await flush()
+    expect(adapter.sent).toEqual([])
     expect(failing.handle).toHaveBeenCalledTimes(1)
   })
 })

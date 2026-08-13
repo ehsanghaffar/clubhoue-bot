@@ -33,7 +33,7 @@ import type { CommunityEvent } from '../src/core/events/event.types.js'
 import type { Bot } from '../src/core/bots/bot.types.js'
 import type { BotRoom } from '../src/core/rooms/room.types.js'
 import type { AiProvider } from '../src/core/ai/ai.types.js'
-import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
+import { InMemoryActionIdempotencyStore } from '../src/core/events/action-idempotency.js'
 
 const makeBot = (overrides: Partial<Bot> = {}): Bot => ({
   id: 'bot-1',
@@ -117,7 +117,7 @@ const buildHarness = (roomOverrides: Partial<BotRoom> = {}): Harness => {
     limiter: new InMemoryMessageRateLimiter()
   }))
   processor.addStage(new AutomationStage({
-    engine: new AutomationEngine({ rules: [createAiRule({ runner: agent.createRunner() })] }),
+    engine: new AutomationEngine({ rules: [createAiRule({ runner: agent.createRunner(), actions: new InMemoryActionIdempotencyStore() })] }),
     resolveContext: async () => createRuleContext({ bot, room, adapter, botUserId: 'bot-self-id' }),
     usage
   }))
@@ -214,7 +214,7 @@ describe('moderation pipeline', () => {
       expect(provider.complete).toHaveBeenCalledTimes(1)
     })
     // Mark responded so the cooldown window is active (short window).
-    cooldown.markResponded('bot-1', 'room-1')
+    cooldown.markResponded('tenant-1', 'bot-1', 'room-1', 'u-1')
     bus.publish(makeMessageEvent('u-1', 'second question?'))
     await new Promise((resolve) => setTimeout(resolve, 20))
     // Moderation allowed both, but AI cooldown suppressed the second response.

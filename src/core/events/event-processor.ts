@@ -12,11 +12,19 @@ import { eventStore as defaultEventStore } from './event-store.impl.js'
 import logger from '../../utils/logger.js'
 
 /**
- * Result a stage may return. Returning `'block'` stops the pipeline for the
- * current event so later stages (e.g. automation, usage) never see it. Used by
- * the moderation stage to gate messages before they reach AI/automation.
+ * Result a stage may return. Stages must not throw for expected control flow;
+ * use explicit results so the processor can mark events retryable or terminal.
  */
-export type EventStageResult = void | 'block'
+export type EventStageResult =
+  | { type: 'continue' }
+  | { type: 'block' }
+  | { type: 'retry', reason: string }
+  | { type: 'fail', reason: string }
+
+export const continueStage = (): EventStageResult => ({ type: 'continue' })
+export const blockStage = (): EventStageResult => ({ type: 'block' })
+export const retryStage = (reason: string): EventStageResult => ({ type: 'retry', reason })
+export const failStage = (reason: string): EventStageResult => ({ type: 'fail', reason })
 
 /**
  * A single step in the event pipeline. Stages are registered in order and run
@@ -36,13 +44,11 @@ export interface EventProcessorDeps {
  * Routes every published community event through a fixed pipeline of stage
  * handlers. Each event is durably tracked by the EventStore: it is claimed
  * (pending -> processing) before stages run, and marked processed/failed after.
- *
- * On start, the processor recovers events left incomplete by a prior run
- * (crash recovery) and re-runs them through the pipeline.
  */
 export class EventProcessor {
   private readonly stages: EventStageHandler[] = []
   private readonly unsubscribers: Array<() => void> = []
+  private recovering = false
 
   constructor (private readonly deps: EventProcessorDeps = { bus: defaultBus, eventStore: defaultEventStore }) {}
 
@@ -61,7 +67,6 @@ export class EventProcessor {
     logger.info('Event processor started with stages:', {
       stages: this.stages.map((s) => s.name)
     })
-    // Recover events left pending/processing by a previous process run.
     void this.recover()
   }
 
@@ -73,63 +78,68 @@ export class EventProcessor {
   }
 
   /**
-   * Recovers incomplete events from the durable store and re-dispatches them
-   * through the in-memory bus so the pipeline processes them. Bounded so a
-   * large backlog cannot stall startup.
+   * Drains recoverable events in bounded batches until the backlog is empty.
+   * Runs asynchronously so HTTP startup is not blocked indefinitely.
    */
   private async recover (): Promise<void> {
+    if (this.recovering) {
+      return
+    }
+    this.recovering = true
     try {
-      const pending = await this.deps.eventStore.recover({ limit: 100 })
-      if (pending.length === 0) {
-        return
-      }
-      logger.info('Recovering incomplete events', { count: pending.length })
-      for (const event of pending) {
-        this.deps.bus.publish(event)
+      for (;;) {
+        const pending = await this.deps.eventStore.recover({ limit: 100 })
+        if (pending.length === 0) {
+          break
+        }
+        logger.info('Recovering incomplete events', { count: pending.length })
+        for (const event of pending) {
+          this.deps.bus.publish(event)
+        }
+        if (pending.length < 100) {
+          break
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       logger.error('Event recovery failed', { error: message })
+    } finally {
+      this.recovering = false
     }
   }
 
-  /**
-   * Handles a single event: claim it durably, run the pipeline, then mark it
-   * processed. A stage returning 'block' gates the event but still counts as
-   * successfully processed.
-   *
-   * Per-stage errors are logged and swallowed (never re-thrown) so one broken
-   * stage cannot take down the pipeline for later stages — this preserves the
-   * original stage-isolation guarantee. The durable store only sees a 'failed'
-   * transition for catastrophic infrastructure errors, not routine stage
-   * exceptions, which is what bounded retry is for.
-   */
   private async handle (event: CommunityEvent<unknown>): Promise<void> {
     const claimed = await this.deps.eventStore.claim(event.id, event.tenantId)
     if (!claimed) {
-      // Already processed, failed-terminally, or claimed by another worker.
       return
     }
     try {
       for (const stage of this.stages) {
+        let result: EventStageResult
         try {
-          const result = await stage.handle(event)
-          if (result === 'block') {
-            logger.debug('Event blocked by stage', {
-              stage: stage.name,
-              type: event.type,
-              botId: event.botId,
-              roomId: event.roomId
-            })
-            break
-          }
+          result = await stage.handle(event)
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          logger.error('Event stage failed', {
+          logger.error('Event stage threw', { stage: stage.name, type: event.type, error: message })
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, message)
+          return
+        }
+        if (result.type === 'block') {
+          logger.debug('Event blocked by stage', {
             stage: stage.name,
             type: event.type,
-            error: message
+            botId: event.botId,
+            roomId: event.roomId
           })
+          break
+        }
+        if (result.type === 'retry') {
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, result.reason)
+          return
+        }
+        if (result.type === 'fail') {
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, result.reason)
+          return
         }
       }
       await this.deps.eventStore.markProcessed(event.id, event.tenantId)

@@ -1,16 +1,15 @@
 /**
  * @license
  * @copyright Ehsanghaffar.
- * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * Licensed under the MIT License. See LICENSE in the project for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import type { Message, Platform, Room, User } from '../core/types.js'
+import { ClubhouseApiError } from './clubhouse/errors.js'
 
 /**
  * Platform-agnostic adapter contract. Every community platform (Clubhouse now,
- * Discord later) implements this interface. The core domain (bots, rooms,
- * events, automation, AI) depends only on this interface — never on a
- * platform-specific API.
+ * Discord later) implements this interface.
  */
 export interface CommunityPlatformAdapter {
   readonly platform: Platform
@@ -24,7 +23,6 @@ export interface CommunityPlatformAdapter {
   searchUsers: (query: string) => Promise<User[]>
   inviteSpeaker: (roomId: string, userId: string) => Promise<void>
   acceptSpeakerInvite: (roomId: string) => Promise<void>
-  /** Optional keep-alive ping for platforms that require periodic activity. */
   ping?: (roomId: string) => Promise<void>
 }
 
@@ -41,17 +39,30 @@ export type AdapterFactory = (
 ) => CommunityPlatformAdapter
 
 /**
- * Raised when a platform call fails (network error, non-2xx, invalid token).
- * Adapter errors are typed so the automation/worker layers can react
- * (e.g. mark the credential invalid) without knowing platform internals.
+ * Raised when a platform call fails. Carries normalized retry/auth semantics
+ * so runtime layers can react without importing platform internals.
  */
 export class AdapterError extends Error {
-  public readonly cause?: unknown
+  readonly cause?: unknown
+  readonly retryable: boolean
+  readonly authenticationFailure: boolean
+  readonly rateLimited: boolean
+  readonly status?: number
 
   constructor (message: string, cause?: unknown) {
     super(message)
     this.name = 'AdapterError'
     this.cause = cause
+    if (cause instanceof ClubhouseApiError) {
+      this.retryable = cause.retryable
+      this.authenticationFailure = cause.authenticationFailure
+      this.rateLimited = cause.rateLimited
+      this.status = cause.status
+    } else {
+      this.retryable = false
+      this.authenticationFailure = false
+      this.rateLimited = false
+    }
   }
 }
 

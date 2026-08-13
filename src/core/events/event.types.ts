@@ -9,16 +9,13 @@ import type { Platform } from '../types.js'
 /**
  * Derives a stable, deterministic id for a normalized event so that the same
  * logical event (e.g. the same platform message) always maps to the same
- * stored event. This is the idempotency key for the durable event store: a
- * duplicate event collides on _id and is processed exactly once.
- *
- * For message-bearing events we use the platform message id; for membership /
- * room lifecycle events we combine type + room + the distinguishing entity.
- * We never rely on randomness or wall-clock timestamps alone.
+ * stored event. Platform identity (externalRoomId) is used — never the internal
+ * Mongo room id alone.
  */
 export const deriveEventId = (
   type: CommunityEventType,
-  roomId: string,
+  platform: Platform,
+  externalRoomId: string,
   payload: Record<string, unknown>
 ): string => {
   const messageId = payload.messageId != null ? String(payload.messageId) : undefined
@@ -27,17 +24,17 @@ export const deriveEventId = (
   switch (type) {
     case 'message.created':
     case 'speaker.requested':
-      return `evt:${type}:${roomId}:${messageId ?? 'unknown'}`
+      return `evt:${platform}:${type}:${externalRoomId}:${messageId ?? 'unknown'}`
     case 'user.joined':
     case 'user.left':
     case 'speaker.invited':
-      return `evt:${type}:${roomId}:${userId ?? 'unknown'}`
+      return `evt:${platform}:${type}:${externalRoomId}:${userId ?? 'unknown'}`
     case 'room.joined':
     case 'room.left':
     case 'room.ended':
-      return `evt:${type}:${roomId}`
+      return `evt:${platform}:${type}:${externalRoomId}`
     default:
-      return `evt:${type}:${roomId}:${messageId ?? userId ?? 'unknown'}`
+      return `evt:${platform}:${type}:${externalRoomId}:${messageId ?? userId ?? 'unknown'}`
   }
 }
 
@@ -60,6 +57,7 @@ export interface CommunityEvent<T = unknown> {
   tenantId: string
   botId: string
   roomId: string
+  externalRoomId?: string
   platform: Platform
   type: CommunityEventType
   timestamp: Date
@@ -70,8 +68,10 @@ export interface MessageCreatedPayload {
   messageId: string
   userId: string
   username?: string
+  displayName?: string
   content: string
   timestamp: Date
+  mentionedUserIds?: string[]
 }
 
 export interface UserJoinedPayload {
@@ -86,14 +86,17 @@ export interface UserLeftPayload {
 
 export interface RoomJoinedPayload {
   roomId: string
+  externalRoomId: string
 }
 
 export interface RoomLeftPayload {
   roomId: string
+  externalRoomId: string
 }
 
 export interface RoomEndedPayload {
   roomId: string
+  externalRoomId: string
 }
 
 export interface SpeakerRequestedPayload {

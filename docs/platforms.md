@@ -25,7 +25,9 @@ The core domain (bots, rooms, events, automation, AI, usage) depends only on thi
 | `adapter.ts` | `ClubhouseAdapter` — implements `CommunityPlatformAdapter`; per-credential, no globals. |
 | `mappers.ts` | Normalizes Clubhouse response shapes into domain types (`Room`, `User`, `Message`). |
 | `types.ts` | Clubhouse-specific types. |
-| `index.ts` | Platform wiring. |
+| `index.ts` | Platform wiring (`registerClubhouseAdapter`). |
+
+`registerBuiltinAdapters()` in `src/platforms/register.ts` is called from server bootstrap before bots start. Without that call, `createPlatformAdapter('clubhouse', …)` throws `No adapter registered for platform: clubhouse`.
 
 ## Security boundary
 

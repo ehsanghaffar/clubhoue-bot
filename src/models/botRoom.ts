@@ -59,7 +59,7 @@ const botRoomSchema = new Schema<BotRoomDoc>(
   { timestamps: true }
 )
 
-botRoomSchema.index({ botId: 1, externalRoomId: 1 }, { unique: true })
+botRoomSchema.index({ tenantId: 1, botId: 1, externalRoomId: 1 }, { unique: true })
 
 export const BotRoomModel: Model<BotRoomDoc> = mongoose.model<BotRoomDoc>(
   'BotRoom',

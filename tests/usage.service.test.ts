@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { UsageService } from '../src/core/usage/usage.service.js'
 import { AnalyticsService } from '../src/core/usage/analytics.service.js'
 import { UsageStage } from '../src/core/usage/usage-stage.js'
+import { continueStage } from '../src/core/events/event-processor.js'
 import {
   InMemoryUsageRepository,
   InMemoryRoomRepository,
@@ -104,7 +105,7 @@ describe('UsageStage', () => {
         record: async () => { throw new Error('db down') }
       }
     })
-    await expect(stage.handle(makeEvent({ type: 'message.created' }))).resolves.toBeUndefined()
+    await expect(stage.handle(makeEvent({ type: 'message.created' }))).resolves.toEqual(continueStage())
   })
 })
 

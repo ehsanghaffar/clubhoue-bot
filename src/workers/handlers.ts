@@ -29,18 +29,10 @@ export interface WorkerDeps {
 }
 
 export type JobHandler = (job: QueueJob) => Promise<void>
-
-/** Maps job names to their handlers. */
 export type JobHandlerMap = Record<JobName, JobHandler>
 
 const asPayload = <T>(job: QueueJob): T => job.data as T
 
-/**
- * Every job must carry an explicit tenant scope. A handler must never invent
- * tenant identity (e.g. `tenantId: ''`): if the context is missing or empty we
- * fail the job so the error surfaces instead of processing under a fabricated
- * tenant.
- */
 const requireTenantId = (tenantId: string | undefined): string => {
   if (tenantId == null || tenantId === '') {
     throw new Error('Job is missing required tenantId; refusing to fabricate tenant context')
@@ -48,9 +40,8 @@ const requireTenantId = (tenantId: string | undefined): string => {
   return tenantId
 }
 
-/** Builds a synthetic event for AI decisions that arrive via the queue. */
-const buildEvent = (data: { tenantId: string, botId: string, roomId: string }): CommunityEvent => ({
-  id: `job-${Date.now()}`,
+const buildEvent = (data: { tenantId: string, botId: string, roomId: string, messageId?: string }): CommunityEvent => ({
+  id: data.messageId != null ? `job:${data.messageId}` : `job:${data.botId}:${data.roomId}`,
   tenantId: requireTenantId(data.tenantId),
   botId: data.botId,
   roomId: data.roomId,
@@ -60,18 +51,16 @@ const buildEvent = (data: { tenantId: string, botId: string, roomId: string }): 
   payload: {}
 })
 
-/**
- * Wire the worker jobs to the domain services. Each handler resolves the live
- * bot runtime (via BotManager) so jobs operate on real, per-bot adapters.
- */
 export const createHandlers = (deps: WorkerDeps): JobHandlerMap => ({
   [JOB_PROCESS_MESSAGE]: async (job) => {
     const data = asPayload<ProcessMessageJob>(job)
     requireTenantId(data.tenantId)
     logger.info('Processing message job', { tenantId: data.tenantId, botId: data.botId, roomId: data.roomId, messageId: data.messageId })
-    // Message ingestion is handled by the room sync pipeline; re-syncing the
-    // room pulls in and deduplicates the latest messages.
-    await deps.botManager.syncRoomByBot(data.botId, data.roomId)
+    await deps.botManager.syncRoom({
+      tenantId: data.tenantId,
+      botId: data.botId,
+      roomId: data.roomId
+    })
   },
 
   [JOB_AI_RESPONSE]: async (job) => {
@@ -83,30 +72,52 @@ export const createHandlers = (deps: WorkerDeps): JobHandlerMap => ({
       logger.warn('AI response job skipped: no runtime context', { botId: data.botId })
       return
     }
-    const decision = deps.ai.canRespond(context.bot, context.room.id, data.content)
+    const decision = deps.ai.canRespond(context.bot, {
+      tenantId: data.tenantId,
+      roomId: context.room.id,
+      userId: data.userId,
+      mentionIdentity: {
+        externalAccountId: context.botUserId ?? '',
+        externalAccountName: context.externalAccountName
+      },
+      mentionInput: { content: data.content }
+    })
     if (!decision.respond) {
       return
     }
     const response = await deps.ai.generateResponse(context.bot, data.userId, data.content)
     await context.sendMessage(response.content)
-    deps.ai.markResponded(context.bot, context.room.id)
+    deps.ai.markResponded(data.tenantId, context.bot.id, context.room.id, data.userId)
   },
 
   [JOB_ACTIVE_PING]: async (job) => {
     const data = asPayload<ActivePingJob>(job)
     requireTenantId(data.tenantId)
-    await deps.botManager.pingRoom(data.botId, data.roomId)
+    await deps.botManager.pingRoom({
+      tenantId: data.tenantId,
+      botId: data.botId,
+      roomId: data.roomId
+    })
   },
 
   [JOB_ROOM_SYNC]: async (job) => {
     const data = asPayload<RoomSyncJob>(job)
     requireTenantId(data.tenantId)
-    await deps.botManager.syncRoomByBot(data.botId, data.roomId)
+    await deps.botManager.syncRoom({
+      tenantId: data.tenantId,
+      botId: data.botId,
+      roomId: data.roomId
+    })
   },
 
   [JOB_SPEAKER_INVITE]: async (job) => {
     const data = asPayload<SpeakerInviteJob>(job)
     requireTenantId(data.tenantId)
-    await deps.botManager.inviteSpeaker(data.botId, data.roomId, data.userId)
+    await deps.botManager.inviteSpeaker({
+      tenantId: data.tenantId,
+      botId: data.botId,
+      roomId: data.roomId,
+      userId: data.userId
+    })
   }
 })

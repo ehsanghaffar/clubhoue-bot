@@ -6,7 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { EventBus } from '../src/core/events/event-bus.js'
-import { EventProcessor } from '../src/core/events/event-processor.js'
+import { EventProcessor, continueStage } from '../src/core/events/event-processor.js'
 import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import type { CommunityEvent } from '../src/core/events/event.types.js'
 
@@ -85,8 +85,8 @@ describe('EventProcessor', () => {
     const order: string[] = []
 
     processor
-      .addStage({ name: 'first', handle: async () => { order.push('first') } })
-      .addStage({ name: 'second', handle: async () => { order.push('second') } })
+      .addStage({ name: 'first', handle: async () => { order.push('first'); return continueStage() } })
+      .addStage({ name: 'second', handle: async () => { order.push('second'); return continueStage() } })
       .start()
 
     bus.publish(makeEvent())
@@ -96,7 +96,7 @@ describe('EventProcessor', () => {
     processor.stop()
   })
 
-  it('continues to later stages when one throws', async () => {
+  it('stops the pipeline when a stage throws', async () => {
     const bus = new EventBus()
     const eventStore = new InMemoryEventStore()
     const processor = new EventProcessor({ bus, eventStore })
@@ -109,13 +109,14 @@ describe('EventProcessor', () => {
           throw new Error('stage error')
         }
       })
-      .addStage({ name: 'after', handle: reached })
+      .addStage({ name: 'after', handle: async () => { reached(); return continueStage() } })
       .start()
 
     bus.publish(makeEvent())
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(reached).toHaveBeenCalledTimes(1)
+    expect(reached).not.toHaveBeenCalled()
+    expect(eventStore.row('evt-1')?.status).toBe('pending')
     processor.stop()
   })
 

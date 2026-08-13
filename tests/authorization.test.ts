@@ -113,9 +113,9 @@ describe('requireRoom', () => {
       botId === 'bot-1' ? makeRoom() : null
     )
     const next = vi.fn()
-    const req: Partial<Request> = { params: { roomId: 'room-1', botId: 'bot-1' }, tenant: { id: 'tenant-1' } }
+    const req: Partial<Request> = { params: { externalRoomId: 'M84V9RyJ', botId: 'bot-1' }, tenant: { id: 'tenant-1' } }
     await invoke(requireRoom(loader), req, next)
-    expect(loader).toHaveBeenCalledWith('room-1', 'tenant-1', 'bot-1')
+    expect(loader).toHaveBeenCalledWith('M84V9RyJ', 'tenant-1', 'bot-1')
     expect(req.room?.id).toBe('room-1')
     expect(next).toHaveBeenCalledWith()
   })
@@ -123,14 +123,14 @@ describe('requireRoom', () => {
   it('returns 404 when the room is missing', async () => {
     const loader = vi.fn(async () => null)
     const next = vi.fn()
-    await invoke(requireRoom(loader), { params: { roomId: 'room-1' }, tenant: { id: 'tenant-1' } }, next)
+    await invoke(requireRoom(loader), { params: { externalRoomId: 'M84V9RyJ' }, tenant: { id: 'tenant-1' } }, next)
     expectError(next, 404, ErrorTypes.NOT_FOUND, 'Room not found')
   })
 
   it('returns 500 when the loader throws', async () => {
     const loader = vi.fn(async () => { throw new Error('boom') })
     const next = vi.fn()
-    await invoke(requireRoom(loader), { params: { roomId: 'room-1' }, tenant: { id: 'tenant-1' } }, next)
+    await invoke(requireRoom(loader), { params: { externalRoomId: 'M84V9RyJ' }, tenant: { id: 'tenant-1' } }, next)
     expectError(next, 500, ErrorTypes.INTERNAL, 'Authorization check failed')
   })
 })

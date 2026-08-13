@@ -27,13 +27,30 @@ export class AgentService {
     return async (event, context) => {
       const payload = event.payload as MessageCreatedPayload
 
-      // Never answer the bot's own messages.
       if (context.botUserId != null && payload.userId === context.botUserId) {
         return null
       }
 
-      const decision = this.deps.ai.canRespond(context.bot, context.room.id, payload.content)
+      const decision = this.deps.ai.canRespond(context.bot, {
+        tenantId: event.tenantId,
+        roomId: context.room.id,
+        userId: payload.userId,
+        mentionIdentity: {
+          externalAccountId: context.botUserId ?? '',
+          externalAccountName: context.externalAccountName
+        },
+        mentionInput: {
+          content: payload.content,
+          mentionedUserIds: payload.mentionedUserIds
+        }
+      })
       if (!decision.respond) {
+        if (decision.reason === 'cooldown') {
+          return null
+        }
+        if (decision.reason !== 'ok') {
+          this.deps.ai.releaseCooldown(event.tenantId, context.bot.id, context.room.id, payload.userId)
+        }
         return null
       }
 
@@ -46,11 +63,15 @@ export class AgentService {
 
       const response = await this.deps.ai.generateResponse(
         context.bot,
-        payload.username ?? payload.userId,
+        payload.username ?? payload.displayName ?? payload.userId,
         payload.content
       )
-      this.deps.ai.markResponded(context.bot, context.room.id)
+      if (response.content === '') {
+        this.deps.ai.releaseCooldown(event.tenantId, context.bot.id, context.room.id, payload.userId)
+        return null
+      }
 
+      this.deps.ai.markResponded(event.tenantId, context.bot.id, context.room.id, payload.userId)
       await this.deps.usage?.record({ ...usageInput, type: 'ai_response' as const })
       return response.content
     }

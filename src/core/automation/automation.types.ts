@@ -19,6 +19,8 @@ export interface RuleContext {
   adapter: CommunityPlatformAdapter
   /** The bot's own external user id on the platform (for self-message detection). */
   botUserId?: string
+  /** The bot's Clubhouse username from the active credential. */
+  externalAccountName?: string
   sendMessage: (content: string) => Promise<void>
   inviteSpeaker: (userId: string) => Promise<void>
 }

@@ -6,6 +6,8 @@
  */
 import type { AutomationActionResult, AutomationRule, RuleContext } from '../automation.types.js'
 import type { CommunityEvent, UserJoinedPayload } from '../../events/event.types.js'
+import type { ActionIdempotencyStore } from '../../events/action-idempotency.js'
+import { buildActionKey } from '../../events/action-idempotency.js'
 import { resolveRoomSettings } from '../../rooms/room.types.js'
 
 const WELCOME_RULE_ID = 'welcome'
@@ -13,12 +15,11 @@ const WELCOME_RULE_NAME = 'Welcome message'
 
 export const DEFAULT_WELCOME_MESSAGE = 'Welcome {username}! 👋'
 
-/**
- * Sends a welcome message when a user joins the room, honoring the bot's
- * welcome message template (`{username}` is substituted) and the room's
- * `welcomeEnabled` setting.
- */
-export const createWelcomeRule = (): AutomationRule => ({
+export interface WelcomeRuleDeps {
+  actions: ActionIdempotencyStore
+}
+
+export const createWelcomeRule = (deps: WelcomeRuleDeps): AutomationRule => ({
   id: WELCOME_RULE_ID,
   name: WELCOME_RULE_NAME,
   match: (event: CommunityEvent): boolean => event.type === 'user.joined',
@@ -28,17 +29,28 @@ export const createWelcomeRule = (): AutomationRule => ({
       return { ruleId: WELCOME_RULE_ID, ruleName: WELCOME_RULE_NAME, action: 'none', success: false }
     }
 
-    const payload = event.payload as UserJoinedPayload
-    const username = payload.username ?? payload.displayName ?? 'friend'
-    const template = context.bot.welcomeMessage ?? DEFAULT_WELCOME_MESSAGE
-    const message = template.replaceAll('{username}', username)
+    const key = buildActionKey(event.id, WELCOME_RULE_ID, 'welcome')
+    const claimed = await deps.actions.claim(event.tenantId, key)
+    if (!claimed) {
+      return { ruleId: WELCOME_RULE_ID, ruleName: WELCOME_RULE_NAME, action: 'none', success: true }
+    }
 
-    await context.sendMessage(message)
-    return {
-      ruleId: WELCOME_RULE_ID,
-      ruleName: WELCOME_RULE_NAME,
-      action: 'send_message',
-      success: true
+    try {
+      const payload = event.payload as UserJoinedPayload
+      const username = payload.username ?? payload.displayName ?? 'friend'
+      const template = context.bot.welcomeMessage ?? DEFAULT_WELCOME_MESSAGE
+      const message = template.replaceAll('{username}', username)
+      await context.sendMessage(message)
+      await deps.actions.markExecuted(event.tenantId, key)
+      return {
+        ruleId: WELCOME_RULE_ID,
+        ruleName: WELCOME_RULE_NAME,
+        action: 'send_message',
+        success: true
+      }
+    } catch (error) {
+      await deps.actions.release(event.tenantId, key)
+      throw error
     }
   }
 })

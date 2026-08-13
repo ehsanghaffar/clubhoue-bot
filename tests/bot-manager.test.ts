@@ -1,6 +1,6 @@
 /**
  * @license
- * @copyright Ehsanghaffar.
+ * @copyright Ehsanghaffarii.
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
@@ -14,8 +14,7 @@ import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication
 import {
   InMemoryBotRepository,
   InMemoryRoomRepository,
-  InMemoryRoomMemberRepository,
-  InMemoryCredentialRepository
+  InMemoryRoomMemberRepository
 } from './helpers/in-memory.js'
 import type { Bot } from '../src/core/bots/bot.types.js'
 import type { Message, Room, User } from '../src/core/types.js'
@@ -51,7 +50,30 @@ describe('BotManager', () => {
     getUser: vi.fn(async (): Promise<User> => ({ id: 'u-1', platform: 'clubhouse' })),
     searchUsers: vi.fn(async (): Promise<User[]> => []),
     inviteSpeaker: vi.fn(async () => {}),
-    acceptSpeakerInvite: vi.fn(async () => {})
+    acceptSpeakerInvite: vi.fn(async () => {}),
+    ping: vi.fn(async () => {})
+  }
+
+  const credentials = {
+    getActiveByBot: async () => ({
+      id: 'cred-1',
+      tenantId: 'tenant-1',
+      botId: 'bot-1',
+      platform: 'clubhouse' as const,
+      encryptedToken: 'x',
+      externalAccountId: 'ext-1',
+      externalAccountName: 'helper',
+      status: 'active' as const,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }),
+    markInvalid: vi.fn(),
+    decryptForRuntime: async () => ({ token: 'tok', externalAccountId: 'ext-1', externalAccountName: 'helper' }),
+    createCredential: vi.fn(),
+    listByBot: vi.fn(),
+    getByIdAndTenant: vi.fn(),
+    revoke: vi.fn(),
+    deleteCredential: vi.fn()
   }
 
   beforeEach(() => {
@@ -62,20 +84,17 @@ describe('BotManager', () => {
     const roomService = new RoomService({ repo: roomRepo, members: memberRepo, deduplicator: new InMemoryMessageDeduplicator(), bus, eventStore: new InMemoryEventStore() })
     botService = new BotService({
       repo: botRepo,
-      credentials: {
-        getActiveByBot: async () => ({ id: 'cred-1', tenantId: 'tenant-1', botId: 'bot-1', platform: 'clubhouse', encryptedToken: 'x', externalAccountId: 'ext-1', status: 'active', createdAt: new Date(), updatedAt: new Date() }),
-        decryptForRuntime: async () => ({ token: 'tok', externalAccountId: 'ext-1' }),
-        createCredential: vi.fn(),
-        listByBot: vi.fn(),
-        getByIdAndTenant: vi.fn(),
-        revoke: vi.fn(),
-        markInvalid: vi.fn(),
-        deleteCredential: vi.fn()
-      } as never
+      credentials: credentials as never
     })
     vi.spyOn(botService, 'createAdapter').mockResolvedValue(adapter)
     vi.spyOn(botService, 'getBotExternalUserId').mockResolvedValue('ext-1')
-    botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    botManager = new BotManager({
+      bots: botRepo,
+      rooms: roomRepo,
+      roomService,
+      botService,
+      credentials: credentials as never
+    })
   })
 
   it('resolves null context for unknown bots', async () => {
@@ -87,19 +106,20 @@ describe('BotManager', () => {
 
   it('joins configured rooms and marks bot active on start', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-    await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'ch_abc' })
+    await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
 
-    await botManager.startBot(bot.id)
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
     expect((await botRepo.findById(bot.id))?.status).toBe('active')
     const room = await roomRepo.findByBot(bot.id)
     expect(room[0].status).toBe('active')
+    expect(adapter.ping).toHaveBeenCalledWith('M84V9RyJ')
   })
 
   it('stopBot marks the bot stopped and clears loops', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
 
-    await botManager.startBot(bot.id)
-    await botManager.stopBot(bot.id)
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+    await botManager.stopBot({ tenantId: 'tenant-1', botId: bot.id })
     expect((await botRepo.findById(bot.id))?.status).toBe('stopped')
   })
 
@@ -115,19 +135,18 @@ describe('BotManager', () => {
     vi.useFakeTimers()
     try {
       const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'room-1' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
       const ping = vi.fn(async () => {})
-      const runtimeAdapter = {
-        ...adapter,
-        ping
-      }
+      const runtimeAdapter = { ...adapter, ping }
       vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
 
-      await botManager.startBot(bot.id)
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      expect(ping).toHaveBeenCalledWith('M84V9RyJ')
+      const callsAfterStart = ping.mock.calls.length
       await vi.advanceTimersByTimeAsync(180_000)
-      expect(ping).toHaveBeenCalled()
+      expect(ping.mock.calls.length).toBeGreaterThan(callsAfterStart)
 
-      await botManager.stopBot(bot.id)
+      await botManager.stopBot({ tenantId: 'tenant-1', botId: bot.id })
       const pingCallsAfterStop = ping.mock.calls.length
       await vi.advanceTimersByTimeAsync(180_000)
       expect(ping.mock.calls.length).toBe(pingCallsAfterStop)
@@ -139,15 +158,23 @@ describe('BotManager', () => {
 
   it('startBot is idempotent: no duplicate joins on repeated starts (F-01)', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
-    await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'ch_abc' })
+    await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
 
-    await botManager.startBot(bot.id)
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
     const joinsAfterFirst = (adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length
-    await botManager.startBot(bot.id)
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
 
-    // The second start must not re-join already-active rooms or create a
-    // second runtime; the bot stays active exactly once.
     expect((await botRepo.findById(bot.id))?.status).toBe('active')
     expect((adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length).toBe(joinsAfterFirst)
+  })
+
+  it('inviteSpeaker uses externalRoomId not internal mongo id', async () => {
+    const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+    const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+    await roomRepo.update('tenant-1', room.id, { status: 'active' })
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+
+    await botManager.inviteSpeaker({ tenantId: 'tenant-1', botId: bot.id, roomId: room.id, userId: 'user-123' })
+    expect(adapter.inviteSpeaker).toHaveBeenCalledWith('M84V9RyJ', 'user-123')
   })
 })

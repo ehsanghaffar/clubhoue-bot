@@ -6,19 +6,20 @@
  */
 
 /**
- * Clubhouse platform module. Importing this module registers the Clubhouse
- * adapter factory so `createPlatformAdapter('clubhouse', credential)` works.
- *
- * The legacy `clubService` singleton is re-exported here for backward
- * compatibility with the pre-refactor services/controllers.
+ * Clubhouse platform module. Call `registerClubhouseAdapter()` (or
+ * `registerBuiltinAdapters()` at boot) so `createPlatformAdapter('clubhouse', …)`
+ * can construct adapters.
  */
 import { registerAdapterFactory } from '../adapter.js'
 import { ClubhouseAdapter } from './adapter.js'
 
-export { ClubApiService, clubService } from './api.service.js'
+export { ClubApiService } from './api.service.js'
+export { ClubhouseApiError } from './errors.js'
 export { default as agent } from './agent.js'
 export * from './types.js'
 export * from './mappers.js'
 export { ClubhouseAdapter } from './adapter.js'
 
-registerAdapterFactory('clubhouse', (credential) => new ClubhouseAdapter(credential))
+export const registerClubhouseAdapter = (): void => {
+  registerAdapterFactory('clubhouse', (credential) => new ClubhouseAdapter(credential))
+}

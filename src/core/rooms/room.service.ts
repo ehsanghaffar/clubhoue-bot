@@ -36,6 +36,10 @@ export class RoomService {
     return await this.deps.repo.findByIdAndTenantAndBot(id, tenantId, botId)
   }
 
+  async findByExternalRoomId (tenantId: string, botId: string, externalRoomId: string): Promise<BotRoom | null> {
+    return await this.deps.repo.findByExternalRoomId(tenantId, botId, externalRoomId)
+  }
+
   async listByBotAndTenant (botId: string, tenantId: string): Promise<BotRoom[]> {
     return await this.deps.repo.findByBotAndTenant(botId, tenantId)
   }
@@ -64,7 +68,7 @@ export class RoomService {
       joinedAt: new Date(),
       lastSeenAt: new Date()
     })
-    await this.publish(room, 'room.joined', { roomId: room.id })
+    await this.publish(room, 'room.joined', { roomId: room.id, externalRoomId: room.externalRoomId })
   }
 
   /** Leaves the room on the platform and marks it inactive. */
@@ -73,7 +77,7 @@ export class RoomService {
       await adapter.leaveRoom(room.externalRoomId)
     } finally {
       await this.deps.repo.update(room.tenantId, room.id, { status: 'inactive', lastSeenAt: new Date() })
-      await this.publish(room, 'room.left', { roomId: room.id })
+      await this.publish(room, 'room.left', { roomId: room.id, externalRoomId: room.externalRoomId })
     }
   }
 
@@ -97,15 +101,22 @@ export class RoomService {
       if (message.userId !== '') {
         const seen = await this.deps.members.ensureSeen(room.id, message.userId)
         if (seen.isNew) {
-          await this.publish(room, 'user.joined', { userId: message.userId })
+          await this.publish(room, 'user.joined', {
+            userId: message.userId,
+            username: message.username,
+            displayName: message.displayName
+          })
         }
       }
 
       await this.publish(room, 'message.created', {
         messageId: message.id,
         userId: message.userId,
+        username: message.username,
+        displayName: message.displayName,
         content: message.content,
-        timestamp: message.timestamp
+        timestamp: message.timestamp,
+        mentionedUserIds: message.mentionedUserIds
       })
     }
 
@@ -125,10 +136,11 @@ export class RoomService {
     payload: Record<string, unknown>
   ): Promise<void> {
     const event = {
-      id: deriveEventId(type, room.id, payload),
+      id: deriveEventId(type, room.platform, room.externalRoomId, payload),
       tenantId: room.tenantId,
       botId: room.botId,
       roomId: room.id,
+      externalRoomId: room.externalRoomId,
       platform: room.platform,
       type,
       timestamp: new Date(),

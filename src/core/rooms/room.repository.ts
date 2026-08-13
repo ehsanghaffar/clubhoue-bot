@@ -22,6 +22,7 @@ export interface RoomRepository {
   findByIdAndTenantAndBot: (id: string, tenantId: string, botId: string) => Promise<BotRoom | null>
   findByBot: (botId: string) => Promise<BotRoom[]>
   findByBotAndTenant: (botId: string, tenantId: string) => Promise<BotRoom[]>
+  findByExternalRoomId: (tenantId: string, botId: string, externalRoomId: string) => Promise<BotRoom | null>
   findByStatus: (status: BotRoomStatus) => Promise<BotRoom[]>
   findByTenantAndStatus: (tenantId: string, status: BotRoomStatus) => Promise<BotRoom[]>
   update: (tenantId: string, id: string, patch: RoomUpdateInput) => Promise<BotRoom | null>
@@ -63,6 +64,11 @@ export class MongoRoomRepository implements RoomRepository {
   async findByBotAndTenant (botId: string, tenantId: string): Promise<BotRoom[]> {
     const docs = await BotRoomModel.find({ botId, tenantId }).sort({ createdAt: -1 }).lean()
     return docs.map(toBotRoom)
+  }
+
+  async findByExternalRoomId (tenantId: string, botId: string, externalRoomId: string): Promise<BotRoom | null> {
+    const doc = await BotRoomModel.findOne({ tenantId, botId, externalRoomId }).lean()
+    return doc == null ? null : toBotRoom(doc)
   }
 
   async findByStatus (status: BotRoomStatus): Promise<BotRoom[]> {

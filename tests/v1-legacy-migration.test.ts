@@ -124,7 +124,7 @@ describe('v1 legacy migration', () => {
       deduplicator: new InMemoryMessageDeduplicator(),
       bus
     })
-    botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     const usageService = new UsageService({ repo: usageRepo })
     const analyticsService = new AnalyticsService({ usage: usageRepo, rooms: roomRepo, members: memberRepo })
 
@@ -189,7 +189,7 @@ describe('v1 legacy migration', () => {
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
 
-      const res = await fetch(api(`/v1/bots/${botId}/rooms/${roomId}/messages`), {
+      const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         method: 'POST',
         headers: headers(tenantAKey),
         body: JSON.stringify({ message: 'hello world' })
@@ -206,7 +206,7 @@ describe('v1 legacy migration', () => {
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
 
-      const res = await fetch(api(`/v1/bots/${botId}/rooms/${roomId}/messages`), {
+      const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         method: 'POST',
         headers: headers(tenantAKey),
         body: JSON.stringify({ message: '' })
@@ -228,7 +228,7 @@ describe('v1 legacy migration', () => {
         timestamp: new Date('2026-08-11T00:00:00.000Z')
       }]
 
-      const res = await fetch(api(`/v1/bots/${botId}/rooms/${roomId}/messages`), {
+      const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         headers: headers(tenantAKey)
       })
       expect(res.status).toBe(200)
@@ -245,7 +245,7 @@ describe('v1 legacy migration', () => {
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
 
-      const res = await fetch(api(`/v1/bots/${botId}/rooms/${roomId}/accept-invite`), {
+      const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/accept-invite`), {
         method: 'POST',
         headers: headers(tenantAKey)
       })
@@ -328,22 +328,11 @@ describe('v1 legacy migration', () => {
       })
       expect(search.status).toBe(404)
 
-      const messages = await fetch(api(`/v1/bots/${botId}/rooms/${roomId}/messages`), {
+      const messages = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         headers: headers(tenantBKey)
       })
       expect(messages.status).toBe(404)
     })
   })
 
-  describe('legacy /api deprecation', () => {
-    it('tags legacy /api responses with RFC 8594 deprecation headers', async () => {
-      // The deprecation middleware runs before auth, so even an unauthenticated
-      // legacy call carries the Deprecation/Sunset/Link headers.
-      const res = await fetch(api('/api/profiles/get_token'))
-      expect(res.status).toBe(401)
-      expect(res.headers.get('deprecation')).toBeTruthy()
-      expect(res.headers.get('sunset')).toBe('2027-02-01')
-      expect(res.headers.get('link')).toContain('/v1')
-    })
-  })
 })

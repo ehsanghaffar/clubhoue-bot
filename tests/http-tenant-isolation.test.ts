@@ -71,7 +71,7 @@ describe('HTTP cross-tenant isolation', () => {
       bus,
       eventStore: new InMemoryEventStore()
     })
-    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     const usageService = new UsageService({ repo: usageRepo })
     const analyticsService = new AnalyticsService({ usage: usageRepo, rooms: roomRepo, members: memberRepo })
 
@@ -146,7 +146,7 @@ describe('HTTP cross-tenant isolation', () => {
   })
 })
 
-describe('legacy /api tenant authentication', () => {
+describe('OpenAPI product surface', () => {
   let app: ReturnType<typeof express>
   let server: { port: number, close: () => Promise<void> }
 
@@ -171,7 +171,7 @@ describe('legacy /api tenant authentication', () => {
       bus,
       eventStore: new InMemoryEventStore()
     })
-    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     const usageService = new UsageService({ repo: usageRepo })
     const analyticsService = new AnalyticsService({ usage: usageRepo, rooms: roomRepo, members: memberRepo })
 
@@ -192,40 +192,40 @@ describe('legacy /api tenant authentication', () => {
   })
 
   const url = (path: string): string => `http://127.0.0.1:${server.port}${path}`
-  const headers = (key: string): Record<string, string> => ({
-    'content-type': 'application/json',
-    'x-api-key': key
-  })
 
-  it('rejects legacy /api calls without a tenant API key', async () => {
+  it('does not expose legacy /api routes', async () => {
     const res = await fetch(url('/api/profiles/get_token'))
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(404)
   })
 
-  it('rejects legacy /api calls with an invalid tenant API key', async () => {
-    const res = await fetch(url('/api/profiles/get_token'), { headers: headers('nope') })
-    expect(res.status).toBe(401)
-  })
+  it('documents the /v1 API in OpenAPI without legacy paths', async () => {
+    const res = await fetch(url('/openapi.json'))
+    expect(res.status).toBe(200)
+    const spec = (await res.json()) as {
+      paths: Record<string, unknown>
+      components: { securitySchemes: Record<string, unknown>, schemas: Record<string, unknown> }
+    }
+    expect(spec.components.securitySchemes.ApiKeyAuth).toBeDefined()
+    expect(spec.components.schemas.BotCredential?.properties?.encryptedToken).toBeUndefined()
+    expect(spec.paths['/bots/{botId}/rooms/{externalRoomId}']).toBeDefined()
+    expect(spec.paths['/api/profiles/get_token']).toBeUndefined()
 
-  it('rejects legacy /api calls with an unknown tenant API key', async () => {
-    const res = await fetch(url('/api/profiles/get_token'), { headers: headers('unknown-key') })
-    expect(res.status).toBe(401)
-  })
-
-  it('authenticates legacy /api via a valid tenant API key (auth passes)', async () => {
-    // The legacy surface now uses tenant resolution; a valid tenant key
-    // establishes req.tenant and is allowed through the auth boundary.
-    // (profile.json is absent, so get_token returns 404 — but NOT 401, proving
-    // the request cleared the tenant-auth middleware.)
-    const res = await fetch(url('/api/profiles/get_token'), { headers: headers(tenantAKey) })
-    expect(res.status).not.toBe(401)
-  })
-
-  it('still tags legacy /api responses with deprecation headers', async () => {
-    const res = await fetch(url('/api/profiles/get_token'), { headers: headers(tenantAKey) })
-    expect(res.status).not.toBe(401)
-    expect(res.headers.get('deprecation')).toBeTruthy()
-    expect(res.headers.get('sunset')).toBe('2027-02-01')
-    expect(res.headers.get('link')).toContain('/v1')
+    const requiredPaths = [
+      '/bots',
+      '/bots/{botId}',
+      '/bots/{botId}/start',
+      '/bots/{botId}/stop',
+      '/bots/{botId}/credentials',
+      '/bots/{botId}/rooms',
+      '/bots/{botId}/rooms/{externalRoomId}/join',
+      '/bots/{botId}/rooms/{externalRoomId}/messages',
+      '/bots/{botId}/users/search',
+      '/bots/{botId}/me',
+      '/bots/{botId}/usage',
+      '/bots/{botId}/events'
+    ]
+    for (const path of requiredPaths) {
+      expect(spec.paths[path], `missing OpenAPI path ${path}`).toBeDefined()
+    }
   })
 })

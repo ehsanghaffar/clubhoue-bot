@@ -9,12 +9,12 @@ import { createWelcomeRule } from './rules/welcome.rule.js'
 import { createSpeakerRule } from './rules/speaker.rule.js'
 import { createAiRule } from './rules/ai.rule.js'
 import { agentService } from '../ai/index.js'
+import { actionIdempotencyStore } from '../events/action-idempotency.js'
 
-/**
- * Default automation engine for the MVP: welcome + speaker request rules, and
- * the AI Q&A rule backed by the AI service's runner.
- */
 export const automationEngine = new AutomationEngine()
-automationEngine.addRule(createWelcomeRule())
-automationEngine.addRule(createSpeakerRule())
-automationEngine.addRule(createAiRule({ runner: agentService.createRunner() }))
+automationEngine.addRule(createWelcomeRule({ actions: actionIdempotencyStore }))
+automationEngine.addRule(createSpeakerRule({ actions: actionIdempotencyStore }))
+automationEngine.addRule(createAiRule({
+  runner: agentService.createRunner(),
+  actions: actionIdempotencyStore
+}))

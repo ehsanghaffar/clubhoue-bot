@@ -78,7 +78,7 @@ describe('Worker', () => {
   beforeEach(() => {
     queue = new InMemoryQueue()
     botManager = {
-      syncRoomByBot: vi.fn(async () => 0),
+      syncRoom: vi.fn(async () => 0),
       pingRoom: vi.fn(async () => {}),
       inviteSpeaker: vi.fn(async () => {}),
       resolveContext: vi.fn(async () => null)
@@ -96,8 +96,8 @@ describe('Worker', () => {
     worker.start()
 
     await queue.enqueue(JOB_ROOM_SYNC, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
-    await waitFor(() => (botManager.syncRoomByBot as ReturnType<typeof vi.fn>).mock.calls.length === 1)
-    expect(botManager.syncRoomByBot).toHaveBeenCalledWith('bot-1', 'room-1')
+    await waitFor(() => (botManager.syncRoom as ReturnType<typeof vi.fn>).mock.calls.length === 1)
+    expect(botManager.syncRoom).toHaveBeenCalledWith({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
     worker.stop()
   })
 
@@ -108,8 +108,8 @@ describe('Worker', () => {
     await queue.enqueue(JOB_SPEAKER_INVITE, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', userId: 'u-1' })
     await queue.enqueue(JOB_ACTIVE_PING, { tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
     await waitFor(() => (botManager.inviteSpeaker as ReturnType<typeof vi.fn>).mock.calls.length === 1)
-    expect(botManager.inviteSpeaker).toHaveBeenCalledWith('bot-1', 'room-1', 'u-1')
-    expect(botManager.pingRoom).toHaveBeenCalledWith('bot-1', 'room-1')
+    expect(botManager.inviteSpeaker).toHaveBeenCalledWith({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', userId: 'u-1' })
+    expect(botManager.pingRoom).toHaveBeenCalledWith({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1' })
     worker.stop()
   })
 
@@ -119,7 +119,7 @@ describe('Worker', () => {
 
     await queue.enqueue('no-such-job', {})
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(botManager.syncRoomByBot).not.toHaveBeenCalled()
+    expect(botManager.syncRoom).not.toHaveBeenCalled()
     worker.stop()
   })
 
@@ -134,7 +134,6 @@ describe('Worker', () => {
       createdAt: new Date()
     } as unknown as QueueJob
 
-    // A handler must never process a job without a tenant scope; it fails loudly.
     await expect(handlers[JOB_AI_RESPONSE](job)).rejects.toThrow(/tenantId/)
     expect(botManager.resolveContext).not.toHaveBeenCalled()
   })

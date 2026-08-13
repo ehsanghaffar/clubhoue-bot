@@ -6,15 +6,13 @@
  */
 import type { AutomationActionResult, AutomationRule, RuleContext } from '../automation.types.js'
 import type { CommunityEvent, MessageCreatedPayload } from '../../events/event.types.js'
+import type { ActionIdempotencyStore } from '../../events/action-idempotency.js'
+import { buildActionKey } from '../../events/action-idempotency.js'
 import { resolveRoomSettings } from '../../rooms/room.types.js'
 
 const SPEAKER_RULE_ID = 'speaker-request'
 const SPEAKER_RULE_NAME = 'Speaker request'
 
-/**
- * Legacy invite-request keyword list preserved from the original
- * `ChannelService`: users typing one of these request a stage invite.
- */
 export const INVITE_REQUEST_KEYWORDS = /invite( me)?|stage|speaker|استیج|اجازه|بالا ببر|برو بالا/i
 
 export const parseAllowList = (raw: string | undefined): Set<string> =>
@@ -27,17 +25,11 @@ export const parseAllowList = (raw: string | undefined): Set<string> =>
 
 export interface SpeakerRuleDeps {
   allowList?: ReadonlySet<string>
+  actions: ActionIdempotencyStore
 }
 
-/**
- * Promotes users to the speaker stage when they send an invite-request
- * keyword and are on the allow list, and only when the room's
- * `autoInviteEnabled` setting is on. Keeps an in-session de-dupe set so the
- * same user is not re-invited repeatedly, mirroring the legacy behavior.
- */
-export const createSpeakerRule = (deps: SpeakerRuleDeps = {}): AutomationRule => {
+export const createSpeakerRule = (deps: SpeakerRuleDeps): AutomationRule => {
   const allowList = deps.allowList ?? parseAllowList(process.env.INVITE_ALLOW_LIST)
-  const invitedThisSession = new Set<string>()
 
   return {
     id: SPEAKER_RULE_ID,
@@ -57,18 +49,24 @@ export const createSpeakerRule = (deps: SpeakerRuleDeps = {}): AutomationRule =>
         return { ruleId: SPEAKER_RULE_ID, ruleName: SPEAKER_RULE_NAME, action: 'none', success: false }
       }
 
-      const dedupeKey = `${event.roomId}:${payload.userId}`
-      if (invitedThisSession.has(dedupeKey)) {
-        return { ruleId: SPEAKER_RULE_ID, ruleName: SPEAKER_RULE_NAME, action: 'none', success: false }
+      const key = buildActionKey(event.id, SPEAKER_RULE_ID, 'speaker_invite')
+      const claimed = await deps.actions.claim(event.tenantId, key)
+      if (!claimed) {
+        return { ruleId: SPEAKER_RULE_ID, ruleName: SPEAKER_RULE_NAME, action: 'none', success: true }
       }
-      invitedThisSession.add(dedupeKey)
 
-      await context.inviteSpeaker(payload.userId)
-      return {
-        ruleId: SPEAKER_RULE_ID,
-        ruleName: SPEAKER_RULE_NAME,
-        action: 'invite_speaker',
-        success: true
+      try {
+        await context.inviteSpeaker(payload.userId)
+        await deps.actions.markExecuted(event.tenantId, key)
+        return {
+          ruleId: SPEAKER_RULE_ID,
+          ruleName: SPEAKER_RULE_NAME,
+          action: 'invite_speaker',
+          success: true
+        }
+      } catch (error) {
+        await deps.actions.release(event.tenantId, key)
+        throw error
       }
     }
   }

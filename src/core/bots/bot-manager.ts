@@ -10,10 +10,12 @@ import type { BotRoom } from '../rooms/room.types.js'
 import type { RoomRepository } from '../rooms/room.repository.js'
 import type { RoomService } from '../rooms/room.service.js'
 import type { BotService } from './bot.service.js'
+import type { CredentialService } from '../credentials/credential.service.js'
 import type { CommunityPlatformAdapter } from '../../platforms/adapter.js'
 import type { CommunityEvent } from '../events/event.types.js'
 import type { RuleContext } from '../automation/automation.types.js'
 import { createRuleContext } from '../automation/action-dispatcher.js'
+import { ClubhouseApiError } from '../../platforms/clubhouse/errors.js'
 import logger from '../../utils/logger.js'
 
 export interface BotManagerDeps {
@@ -21,113 +23,156 @@ export interface BotManagerDeps {
   rooms: RoomRepository
   roomService: RoomService
   botService: BotService
+  credentials: CredentialService
+}
+
+export interface BotRuntimeScope {
+  tenantId: string
+  botId: string
+}
+
+export interface RoomRuntimeScope extends BotRuntimeScope {
+  roomId: string
+}
+
+export interface InviteSpeakerScope extends RoomRuntimeScope {
+  userId: string
 }
 
 interface RuntimeEntry {
+  tenantId: string
   bot: Bot
   adapter: CommunityPlatformAdapter
   botUserId?: string
+  externalAccountName?: string
 }
 
-interface LoopEntry {
-  roomId: string
-  interval: NodeJS.Timeout
+interface RoomTimers {
+  sync?: NodeJS.Timeout
+  ping?: NodeJS.Timeout
+}
+
+type StartupStatus = 'stopped' | 'starting' | 'active' | 'stopping' | 'error'
+
+interface StartupEntry {
+  status: StartupStatus
+  promise?: Promise<void>
 }
 
 const DEFAULT_SYNC_INTERVAL_MS = parseInt(process.env.ROOM_SYNC_INTERVAL_MS ?? '15000', 10)
-const DEFAULT_ACTIVE_PING_INTERVAL_MS = clampActivePingInterval(process.env.ACTIVE_PING_INTERVAL_MS ?? '180000')
 
-function clampActivePingInterval (value: string): number {
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isFinite(parsed)) {
+export const clampActivePingInterval = (value: string | number | undefined): number => {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     return 180000
   }
   return Math.min(Math.max(parsed, 120000), 300000)
 }
 
+const DEFAULT_ACTIVE_PING_INTERVAL_MS = clampActivePingInterval(process.env.ACTIVE_PING_INTERVAL_MS ?? '180000')
+
 /**
  * Owns the per-bot runtime: builds an adapter per active bot, starts/stops the
- * per-room sync loops (scoped by botId:roomId), and resolves automation rule
- * contexts from the events those loops publish.
+ * per-room sync and ping loops (scoped by botId:roomId), and resolves
+ * automation rule contexts from the events those loops publish.
  */
 export class BotManager {
   private readonly runtimes = new Map<string, RuntimeEntry>()
-  private readonly loops = new Map<string, LoopEntry>()
+  private readonly roomTimers = new Map<string, RoomTimers>()
+  private readonly startup = new Map<string, StartupEntry>()
 
   constructor (private readonly deps: BotManagerDeps) {}
 
-  /**
-   * Starts a bot: joins its configured rooms and begins the sync loops.
-   * Safe to call more than once (idempotent per room).
-   */
-  async startBot (botId: string): Promise<void> {
-    const bot = await this.deps.bots.findById(botId)
+  async startBot (scope: BotRuntimeScope): Promise<void> {
+    const { tenantId, botId } = scope
+    const existing = this.startup.get(botId)
+    if (existing?.status === 'starting' && existing.promise != null) {
+      await existing.promise
+      return
+    }
+    if (existing?.status === 'active' && this.runtimes.has(botId)) {
+      return
+    }
+
+    const promise = this.doStartBot(tenantId, botId)
+    this.startup.set(botId, { status: 'starting', promise })
+    try {
+      await promise
+      this.startup.set(botId, { status: 'active' })
+    } catch (error) {
+      this.startup.set(botId, { status: 'error' })
+      throw error
+    }
+  }
+
+  private async doStartBot (tenantId: string, botId: string): Promise<void> {
+    const bot = await this.deps.bots.findByIdAndTenant(botId, tenantId)
     if (bot == null) {
       throw new Error(`Bot not found: ${botId}`)
     }
 
+    const credential = await this.deps.credentials.getActiveByBot(tenantId, botId)
     const adapter = await this.deps.botService.createAdapter(bot)
-    const botUserId = await this.deps.botService.getBotExternalUserId(bot.tenantId, bot.id)
+    const botUserId = credential?.externalAccountId ?? await this.deps.botService.getBotExternalUserId(tenantId, botId)
 
-    this.runtimes.set(botId, { bot, adapter, botUserId })
+    this.runtimes.set(botId, {
+      tenantId,
+      bot,
+      adapter,
+      botUserId,
+      externalAccountName: credential?.externalAccountName
+    })
 
-    const rooms = await this.deps.rooms.findByBotAndTenant(botId, bot.tenantId)
+    const rooms = await this.deps.rooms.findByBotAndTenant(botId, tenantId)
     for (const room of rooms) {
+      if (room.status === 'inactive' || room.status === 'error') {
+        continue
+      }
       if (room.status !== 'active' && room.status !== 'joining') {
         try {
+          await this.deps.roomService.update(tenantId, room.id, { status: 'joining' })
           await this.deps.roomService.join(room, adapter)
         } catch (error) {
-          logger.error('Failed to join room', { botId, roomId: room.id, error })
-          await this.deps.roomService.update(room.tenantId, room.id, { status: 'error' })
+          logger.error('Failed to join room', { tenantId, botId, roomId: room.id, externalRoomId: room.externalRoomId, error })
+          await this.deps.roomService.update(tenantId, room.id, { status: 'error' })
           continue
         }
       }
-      this.startRoomLoop(bot, room, adapter)
+      await this.ensureRoomRuntime(tenantId, botId, room, adapter)
     }
 
-    await this.deps.bots.update(bot.tenantId, botId, { status: 'active' })
-    logger.info('Bot started', { botId })
+    await this.deps.bots.update(tenantId, botId, { status: 'active' })
+    logger.info('Bot started', { tenantId, botId })
   }
 
-  /** Stops a bot: clears its loops and marks it stopped. */
-  async stopBot (botId: string): Promise<void> {
-    const runtime = this.runtimes.get(botId)
-    for (const [key, entry] of this.loops) {
-      if (key.startsWith(`${botId}:`) || key.startsWith(`${botId}:`)) {
-        clearInterval(entry.interval)
-        this.loops.delete(key)
-      }
-    }
+  async stopBot (scope: BotRuntimeScope): Promise<void> {
+    const { tenantId, botId } = scope
+    this.startup.set(botId, { status: 'stopping' })
+    this.clearBotTimers(botId)
     this.runtimes.delete(botId)
-    // The bot record carries its tenantId; fall back to a lookup if the runtime
-    // was not loaded in this process.
-    const tenantId = runtime?.bot.tenantId ?? (await this.deps.bots.findById(botId))?.tenantId
-    if (tenantId != null) {
-      await this.deps.bots.update(tenantId, botId, { status: 'stopped' })
-    }
-    logger.info('Bot stopped', { botId })
+    await this.deps.bots.update(tenantId, botId, { status: 'stopped' })
+    this.startup.set(botId, { status: 'stopped' })
+    logger.info('Bot stopped', { tenantId, botId })
   }
 
-  /** Restarts every bot that was previously active (server boot). */
   async startAll (): Promise<void> {
     const active = await this.deps.bots.findByStatus('active')
     for (const bot of active) {
       try {
-        await this.startBot(bot.id)
+        await this.startBot({ tenantId: bot.tenantId, botId: bot.id })
       } catch (error) {
-        logger.error('Failed to restart bot on boot', { botId: bot.id, error })
+        logger.error('Failed to restart bot on boot', { botId: bot.id, tenantId: bot.tenantId, error })
       }
     }
     logger.info('Bot manager started', { activeCount: active.length })
   }
 
-  /** Resolves an automation rule context for a published event. */
   resolveContext = async (event: CommunityEvent): Promise<RuleContext | null> => {
     const runtime = this.runtimes.get(event.botId)
-    if (runtime == null) {
+    if (runtime == null || runtime.tenantId !== event.tenantId) {
       return null
     }
-    const room = await this.deps.rooms.findById(event.roomId)
+    const room = await this.deps.rooms.findByIdAndTenantAndBot(event.roomId, event.tenantId, event.botId)
     if (room == null) {
       return null
     }
@@ -135,87 +180,189 @@ export class BotManager {
       bot: runtime.bot,
       room,
       adapter: runtime.adapter,
-      botUserId: runtime.botUserId
+      botUserId: runtime.botUserId,
+      externalAccountName: runtime.externalAccountName
     })
   }
 
   stopAll (): void {
-    for (const entry of this.loops.values()) {
-      clearInterval(entry.interval)
+    for (const botId of [...this.runtimes.keys()]) {
+      this.clearBotTimers(botId)
     }
-    this.loops.clear()
+    this.roomTimers.clear()
     this.runtimes.clear()
+    for (const botId of this.startup.keys()) {
+      this.startup.set(botId, { status: 'stopped' })
+    }
   }
 
-  /** Runs a single room sync for a running bot (used by the worker queue). */
-  async syncRoomByBot (botId: string, roomId: string): Promise<number> {
-    const runtime = this.runtimes.get(botId)
-    if (runtime == null) {
+  async syncRoom (scope: RoomRuntimeScope): Promise<number> {
+    const runtime = this.runtimes.get(scope.botId)
+    if (runtime == null || runtime.tenantId !== scope.tenantId) {
       return 0
     }
-    const room = await this.deps.rooms.findById(roomId)
-    if (room == null || room.status === 'inactive') {
+    const room = await this.deps.rooms.findByIdAndTenantAndBot(scope.roomId, scope.tenantId, scope.botId)
+    if (room == null || room.status !== 'active') {
       return 0
     }
     return await this.deps.roomService.syncRoom(room, runtime.adapter)
   }
 
-  /** Sends a keep-alive ping for a running bot's room (active-ping job). */
-  async pingRoom (botId: string, roomId: string): Promise<void> {
-    const runtime = this.runtimes.get(botId)
-    if (runtime == null) {
+  async pingRoom (scope: RoomRuntimeScope): Promise<void> {
+    const runtime = this.runtimes.get(scope.botId)
+    if (runtime == null || runtime.tenantId !== scope.tenantId) {
       return
     }
-    const room = await this.deps.rooms.findById(roomId)
-    if (room == null || room.botId !== botId || room.status !== 'active') {
+    const room = await this.deps.rooms.findByIdAndTenantAndBot(scope.roomId, scope.tenantId, scope.botId)
+    if (room == null || room.status !== 'active') {
       return
     }
     if (runtime.adapter.ping == null) {
       return
     }
-    try {
-      await runtime.adapter.ping(room.externalRoomId)
-    } catch (error) {
-      logger.warn('Active ping failed for room; keeping runtime alive for retry', { botId, roomId, externalRoomId: room.externalRoomId, error })
-    }
+    await this.performPing(scope.tenantId, scope.botId, room, runtime.adapter)
   }
 
-  /** Invites a user to speak in a running bot's room (speaker-invite job). */
-  async inviteSpeaker (botId: string, roomId: string, userId: string): Promise<void> {
-    const runtime = this.runtimes.get(botId)
-    if (runtime == null) {
+  async inviteSpeaker (scope: InviteSpeakerScope): Promise<void> {
+    const runtime = this.runtimes.get(scope.botId)
+    if (runtime == null || runtime.tenantId !== scope.tenantId) {
       return
     }
-    await runtime.adapter.inviteSpeaker(roomId, userId)
+    const room = await this.deps.rooms.findByIdAndTenantAndBot(scope.roomId, scope.tenantId, scope.botId)
+    if (room == null || room.status !== 'active') {
+      return
+    }
+    await runtime.adapter.inviteSpeaker(room.externalRoomId, scope.userId)
   }
 
-  private startRoomLoop (bot: Bot, room: BotRoom, adapter: CommunityPlatformAdapter): void {
-    const key = `${bot.id}:${room.id}`
-    if (this.loops.has(key)) {
+  /** Stops timers when a room becomes inactive, leaving, or error. */
+  onRoomInactive (botId: string, roomId: string): void {
+    this.clearRoomTimers(botId, roomId)
+  }
+
+  private async ensureRoomRuntime (
+    tenantId: string,
+    botId: string,
+    room: BotRoom,
+    adapter: CommunityPlatformAdapter
+  ): Promise<void> {
+    const activeRoom = await this.deps.rooms.findByIdAndTenantAndBot(room.id, tenantId, botId)
+    if (activeRoom == null || activeRoom.status !== 'active') {
       return
     }
-    const syncInterval = setInterval(() => {
-      void this.syncRoom(room.id, adapter)
+    await this.performPing(tenantId, botId, activeRoom, adapter)
+    this.startRoomTimers(tenantId, botId, activeRoom, adapter)
+  }
+
+  private startRoomTimers (
+    tenantId: string,
+    botId: string,
+    room: BotRoom,
+    adapter: CommunityPlatformAdapter
+  ): void {
+    const key = this.timerKey(botId, room.id)
+    if (this.roomTimers.has(key)) {
+      return
+    }
+
+    const timers: RoomTimers = {}
+    timers.sync = setInterval(() => {
+      void this.syncRoom({ tenantId, botId, roomId: room.id })
     }, DEFAULT_SYNC_INTERVAL_MS)
-    const pingInterval = adapter.ping == null ? null : setInterval(() => {
-      void this.pingRoom(bot.id, room.id)
-    }, DEFAULT_ACTIVE_PING_INTERVAL_MS)
 
-    if (pingInterval != null) {
-      this.loops.set(`${key}:ping`, { roomId: room.id, interval: pingInterval })
+    if (adapter.ping != null) {
+      timers.ping = setInterval(() => {
+        void this.pingRoom({ tenantId, botId, roomId: room.id })
+      }, DEFAULT_ACTIVE_PING_INTERVAL_MS)
     }
-    this.loops.set(key, { roomId: room.id, interval: syncInterval })
+
+    this.roomTimers.set(key, timers)
   }
 
-  private async syncRoom (roomId: string, adapter: CommunityPlatformAdapter): Promise<void> {
-    const room = await this.deps.rooms.findById(roomId)
-    if (room == null || room.status === 'inactive') {
+  private async performPing (
+    tenantId: string,
+    botId: string,
+    room: BotRoom,
+    adapter: CommunityPlatformAdapter
+  ): Promise<void> {
+    if (adapter.ping == null) {
       return
     }
     try {
-      await this.deps.roomService.syncRoom(room, adapter)
+      await adapter.ping(room.externalRoomId)
     } catch (error) {
-      logger.error('Room sync failed', { roomId, error })
+      const clubhouseError = this.extractClubhouseError(error)
+      if (clubhouseError?.authenticationFailure === true) {
+        logger.error('Active ping authentication failure; invalidating credential', {
+          tenantId,
+          botId,
+          roomId: room.id,
+          externalRoomId: room.externalRoomId,
+          status: clubhouseError.status
+        })
+        await this.handleAuthFailure(tenantId, botId, room.id)
+        return
+      }
+      logger.warn('Active ping failed for room; keeping runtime alive for retry', {
+        tenantId,
+        botId,
+        roomId: room.id,
+        externalRoomId: room.externalRoomId,
+        retryable: clubhouseError?.retryable ?? true,
+        status: clubhouseError?.status
+      })
+    }
+  }
+
+  private async handleAuthFailure (tenantId: string, botId: string, roomId: string): Promise<void> {
+    const credential = await this.deps.credentials.getActiveByBot(tenantId, botId)
+    if (credential != null) {
+      await this.deps.credentials.markInvalid(tenantId, credential.id)
+    }
+    this.clearRoomTimers(botId, roomId)
+    await this.deps.roomService.update(tenantId, roomId, { status: 'error' })
+  }
+
+  private extractClubhouseError (error: unknown): ClubhouseApiError | undefined {
+    if (error instanceof ClubhouseApiError) {
+      return error
+    }
+    if (error != null && typeof error === 'object' && 'cause' in error) {
+      const cause = (error as { cause?: unknown }).cause
+      if (cause instanceof ClubhouseApiError) {
+        return cause
+      }
+    }
+    return undefined
+  }
+
+  private timerKey (botId: string, roomId: string): string {
+    return `${botId}:${roomId}`
+  }
+
+  private clearRoomTimers (botId: string, roomId: string): void {
+    const key = this.timerKey(botId, roomId)
+    const timers = this.roomTimers.get(key)
+    if (timers == null) {
+      return
+    }
+    if (timers.sync != null) {
+      clearInterval(timers.sync)
+    }
+    if (timers.ping != null) {
+      clearInterval(timers.ping)
+    }
+    this.roomTimers.delete(key)
+  }
+
+  private clearBotTimers (botId: string): void {
+    for (const key of [...this.roomTimers.keys()]) {
+      if (key.startsWith(`${botId}:`)) {
+        const [, roomId] = key.split(':')
+        if (roomId != null) {
+          this.clearRoomTimers(botId, roomId)
+        }
+      }
     }
   }
 }

@@ -69,7 +69,7 @@ describe('v1 API', () => {
       bus,
       eventStore: new InMemoryEventStore()
     })
-    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService })
+    const botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     const usageService = new UsageService({ repo: usageRepo })
     const analyticsService = new AnalyticsService({ usage: usageRepo, rooms: roomRepo, members: memberRepo })
 
@@ -252,10 +252,10 @@ describe('v1 API', () => {
       const listBody = (await list.json()) as { data: Array<{ id: string }> }
       expect(listBody.data).toHaveLength(1)
 
-      const get = await fetch(api(`/v1/bots/${botId}/rooms/${createBody.data.id}`), { headers: headers(tenantAKey) })
+      const get = await fetch(api(`/v1/bots/${botId}/rooms/ch_room_1`), { headers: headers(tenantAKey) })
       expect(get.status).toBe(200)
-      const getBody = (await get.json()) as { data: { id: string } }
-      expect(getBody.data.id).toBe(createBody.data.id)
+      const getBody = (await get.json()) as { data: { externalRoomId: string } }
+      expect(getBody.data.externalRoomId).toBe('ch_room_1')
     })
 
     it('returns 404 for a room that does not exist', async () => {
@@ -273,7 +273,7 @@ describe('v1 API', () => {
       })
       const createBody = (await create.json()) as { data: { id: string } }
 
-      const join = await fetch(api(`/v1/bots/${botId}/rooms/${createBody.data.id}/join`), {
+      const join = await fetch(api(`/v1/bots/${botId}/rooms/ch_room_1/join`), {
         method: 'POST',
         headers: headers(tenantAKey)
       })

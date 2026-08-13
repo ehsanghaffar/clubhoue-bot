@@ -9,12 +9,11 @@ import http from 'http'
 import logger from './utils/logger.js'
 import db from './config/db/db.js'
 import { getMissingEnvVars } from './config/environment.js'
-import { initializeService } from './services/service-initializer.js'
-import { timerService } from './services/timer.service.js'
-import { tenantService } from './core/tenants/tenant.service.js'
 import { configureEventPipeline } from './core/startup.js'
 import { botManager } from './core/bots/index.js'
+import { tenantService } from './core/tenants/tenant.service.js'
 import { createApp } from './app.js'
+import { registerBuiltinAdapters } from './platforms/register.js'
 
 dotenv.config()
 if (process.env.NODE_ENV !== 'production') {
@@ -37,7 +36,7 @@ const bootstrap = async (): Promise<void> => {
     validateEnvironment()
     await db()
     await tenantService.ensureDefaultTenant()
-    initializeService()
+    registerBuiltinAdapters()
     configureEventPipeline()
     await botManager.startAll()
 
@@ -58,21 +57,17 @@ const bootstrap = async (): Promise<void> => {
 
     process.on('SIGINT', () => {
       logger.info('Shutting down (SIGINT)')
-      timerService.stop()
       botManager.stopAll()
       server.close(() => process.exit(0))
     })
 
     process.on('SIGTERM', () => {
       logger.info('Shutting down (SIGTERM)')
-      timerService.stop()
       botManager.stopAll()
       server.close(() => process.exit(0))
     })
 
     process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-      // A transient failure in a background loop must not take the whole bot down;
-      // log it and keep serving.
       logger.error('Unhandled Rejection at:', { promise, reason })
     })
 

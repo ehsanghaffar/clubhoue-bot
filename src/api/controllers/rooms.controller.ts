@@ -7,12 +7,14 @@
 import type { RequestHandler } from 'express'
 import type { RoomService } from '../../core/rooms/room.service.js'
 import type { BotService } from '../../core/bots/bot.service.js'
+import type { BotManager } from '../../core/bots/bot-manager.js'
 import type { BotRoomSettings } from '../../core/rooms/room.types.js'
 import { createBadRequestError, createNotFoundError } from '../../utils/errors.js'
 
 export interface RoomsControllerDeps {
   roomService: RoomService
   botService: BotService
+  botManager: BotManager
 }
 
 /** Shape produced by the Joi validation middleware (see validation/rooms.schema.ts). */
@@ -117,6 +119,7 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
       }
       const adapter = await deps.botService.createAdapter(bot)
       await deps.roomService.leave(room, adapter)
+      deps.botManager.onRoomInactive(bot.id, room.id)
       const updated = await deps.roomService.findByIdAndTenantAndBot(room.id, bot.tenantId, bot.id)
       res.json({ data: updated ?? room })
     } catch (err) {

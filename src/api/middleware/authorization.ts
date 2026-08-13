@@ -50,20 +50,20 @@ export const requireBot = (loader: BotLoader): RequestHandler => {
 }
 
 /**
- * Ensures the `:roomId` route param belongs to the request's tenant (and, when
- * present, its bot) and loads it onto the request.
+ * Ensures the `:externalRoomId` route param belongs to the request's tenant
+ * (and, when present, its bot) and loads it onto the request.
  */
 export const requireRoom = (loader: RoomLoader): RequestHandler => {
   return async (req, _res, next): Promise<void> => {
-    const roomId = param(req.params.roomId)
+    const externalRoomId = param(req.params.externalRoomId)
     const tenantId = req.tenant?.id
     const botId = param(req.params.botId)
-    if (roomId == null || tenantId == null) {
+    if (externalRoomId == null || tenantId == null) {
       next(notFound('Room'))
       return
     }
     try {
-      const room = await loader(roomId, tenantId, botId)
+      const room = await loader(externalRoomId, tenantId, botId)
       if (room == null) {
         next(notFound('Room'))
         return

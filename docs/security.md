@@ -4,14 +4,13 @@ Security measures implemented in the MVP. Also see the repo `SECURITY.md` for th
 
 ## Authentication
 
-- **Legacy `/api`:** now authenticates via the **same tenant-resolution mechanism as `/v1`** — the `x-api-key` must resolve to an active tenant (`TenantService.findByApiKey`), establishing `req.tenant`. The old static `requireApiKey` (which only matched `API_KEY`) was removed so the legacy path can no longer bypass the tenant isolation boundary.
 - **`/v1`:** `x-api-key` resolves to an **active tenant** (`TenantService`), and a tenant context is attached to the request.
 
 ## Tenant isolation
 
 All resource access is tenant-scoped **at both the authorization boundary and the repository layer**:
 
-- **Controllers + middleware:** `/v1` resource access goes through authorization loaders (`requireBot`, `requireRoom`, `requireCredential`); the legacy `/api` path establishes `req.tenant` via `authentication` + `tenantContext`. A resource belonging to another tenant returns `404` (no existence disclosure).
+- **Controllers + middleware:** `/v1` resource access goes through authorization loaders (`requireBot`, `requireRoom`, `requireCredential`). A resource belonging to another tenant returns `404`.
 - **Defense in depth — repositories:** every tenant-owned mutation (`update`, `delete`) on bots, rooms, and credentials now **requires `tenantId` as a parameter** and scopes the query by `{ _id, tenantId }`. A cross-tenant write matches nothing. Reads prefer the `findByIdAndTenant` family. This ensures another internal service cannot bypass the controller and reach another tenant's data.
 - **Credential deletion** is a non-disclosure no-op for a missing or cross-tenant credential (returns void, not 404) so callers cannot probe credential existence across tenants.
 
@@ -28,7 +27,7 @@ Integration tests cover the full cross-tenant matrix (read/update/delete across 
 ## Input validation & abuse
 
 - Request bodies are validated with Joi (`validateBody`) on create/update routes.
-- Rate limiting: 100 requests/minute per IP on both `/api` and `/v1` (`express-rate-limit`); sensitive legacy actions get a stricter limiter.
+- Rate limiting: 100 requests/minute per IP on `/v1` (`express-rate-limit`).
 - The bot's own messages are suppressed in AI automation (no self-echo loops).
 
 ## Moderation before AI
@@ -37,7 +36,7 @@ The event pipeline runs a **moderation stage before automation/AI** (`src/core/m
 
 ## API docs exposure
 
-`/api-docs` (Swagger UI) is **intentionally public**: it serves only the route/parameter schema generated from source comments and exposes no credentials, secrets, tenant data, or stack traces. The raw OpenAPI document at `/swagger.json` is protected by the API key. This is an accepted trade-off for development usability (protecting `/api-docs` would break the UI's static-asset loading without the custom header).
+`/api-docs` (Swagger UI) and `/openapi.json` are **public**: they serve only route/parameter schemas and expose no credentials or tenant data.
 
 ## Error handling
 

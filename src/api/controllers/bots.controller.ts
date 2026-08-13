@@ -106,7 +106,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
         return
       }
       // Stop any running loops first, otherwise orphaned runtime state remains.
-      await deps.botManager.stopBot(bot.id)
+      await deps.botManager.stopBot({ tenantId: bot.tenantId, botId: bot.id })
       await deps.botService.deleteBot(bot.tenantId, bot.id)
       res.status(204).end()
     } catch (err) {
@@ -121,7 +121,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
         next(createNotFoundError('Bot not found'))
         return
       }
-      await deps.botManager.startBot(bot.id)
+      await deps.botManager.startBot({ tenantId: bot.tenantId, botId: bot.id })
       const updated = await deps.botService.getByIdAndTenant(bot.id, bot.tenantId)
       res.json({ data: updated ?? bot })
     } catch (err) {
@@ -141,7 +141,7 @@ export const createBotsController = (deps: BotsControllerDeps): BotsController =
         next(createNotFoundError('Bot not found'))
         return
       }
-      await deps.botManager.stopBot(bot.id)
+      await deps.botManager.stopBot({ tenantId: bot.tenantId, botId: bot.id })
       const updated = await deps.botService.getByIdAndTenant(bot.id, bot.tenantId)
       res.json({ data: updated ?? bot })
     } catch (err) {

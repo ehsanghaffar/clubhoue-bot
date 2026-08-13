@@ -78,6 +78,14 @@ describe('AiService.decide (trigger modes)', () => {
     expect(ai.decide(bot, 'tell me a joke').respond).toBe(false)
   })
 
+  it('matches real-world Clubhouse mention formatting case-insensitively, including spaced display names', () => {
+    const { ai } = makeService()
+    const bot = makeBot({ name: 'My Bot', aiConfig: { ...makeBot().aiConfig, triggerMode: 'mention' } })
+    expect(ai.decide(bot, '@my bot tell me a joke').respond).toBe(true)
+    expect(ai.decide(bot, 'hello @MY BOT please help').respond).toBe(true)
+    expect(ai.decide(bot, 'tell me a joke').respond).toBe(false)
+  })
+
   it('never auto-responds in manual mode', () => {
     const { ai } = makeService()
     const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, triggerMode: 'manual' } })

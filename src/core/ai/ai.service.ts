@@ -25,6 +25,32 @@ const QUESTION_WORDS_FA = ['چرا', 'چه', 'کجا', 'کی', 'چطور', 'چگ
 const QUESTION_MARK = '?'
 const QUESTION_MARK_FA = '؟'
 
+const normalizeMentionText = (value: string): string => value
+  .normalize('NFKC')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLowerCase()
+
+const mentionsBot = (text: string, botName: string): boolean => {
+  const normalizedText = normalizeMentionText(text)
+  const normalizedBotName = normalizeMentionText(botName)
+  if (normalizedBotName.length === 0) {
+    return false
+  }
+  const variants = new Set<string>([
+    `@${normalizedBotName}`,
+    normalizedBotName,
+    ...normalizedBotName.split(' ').filter(Boolean).map((part) => `@${part}`)
+  ])
+
+  for (const variant of variants) {
+    if (normalizedText.includes(variant)) {
+      return true
+    }
+  }
+  return normalizedText.includes(`@${normalizedBotName.replace(/\s+/g, '')}`)
+}
+
 const looksLikeQuestion = (content: string): boolean => {
   const lower = content.toLowerCase()
   if (content.includes(QUESTION_MARK) || content.includes(QUESTION_MARK_FA)) {
@@ -61,8 +87,7 @@ export class AiService {
           ? { respond: true, reason: 'ok' }
           : { respond: false, reason: 'no_trigger' }
       case 'mention': {
-        const mentionsBot = text.toLowerCase().includes(`@${bot.name.toLowerCase()}`)
-        return mentionsBot
+        return mentionsBot(text, bot.name)
           ? { respond: true, reason: 'ok' }
           : { respond: false, reason: 'no_trigger' }
       }

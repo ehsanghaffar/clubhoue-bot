@@ -36,6 +36,9 @@ export interface Message {
   id: string
   roomId: string
   userId: string
+  username?: string
+  displayName?: string
   content: string
   timestamp: Date
+  mentionedUserIds?: string[]
 }

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { EventStageHandler, EventStageResult } from '../events/event-processor.js'
+import { blockStage, continueStage, type EventStageHandler, type EventStageResult } from '../events/event-processor.js'
 import type { CommunityEvent, MessageCreatedPayload } from '../events/event.types.js'
 import type { BotRoom } from '../rooms/room.types.js'
 import { resolveRoomSettings } from '../rooms/room.types.js'
@@ -45,7 +45,7 @@ export class ModerationStage implements EventStageHandler {
 
   async handle (event: CommunityEvent): Promise<EventStageResult> {
     if (event.type !== 'message.created') {
-      return
+      return continueStage()
     }
 
     let room: BotRoom | null
@@ -53,22 +53,22 @@ export class ModerationStage implements EventStageHandler {
       room = await this.deps.getRoom(event)
     } catch (error) {
       logger.error('Failed to resolve moderation room', { type: event.type, botId: event.botId, error })
-      return
+      return continueStage()
     }
     if (room == null) {
-      return
+      return continueStage()
     }
 
     const settings = resolveRoomSettings(room.settings)
     if (!settings.moderationEnabled) {
-      return
+      return continueStage()
     }
 
     const payload = event.payload as MessageCreatedPayload
     const decision = this.decide(event, payload, settings)
 
     if (decision.allowed) {
-      return
+      return continueStage()
     }
 
     logger.info('Message blocked by moderation', {
@@ -77,7 +77,7 @@ export class ModerationStage implements EventStageHandler {
       userId: payload.userId,
       reason: decision.reason
     })
-    return 'block'
+    return blockStage()
   }
 
   private decide (

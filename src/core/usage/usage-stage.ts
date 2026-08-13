@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import type { EventStageHandler } from '../events/event-processor.js'
+import { continueStage, type EventStageHandler, type EventStageResult } from '../events/event-processor.js'
 import type { CommunityEvent } from '../events/event.types.js'
 import type { UsageType } from './usage.types.js'
 import type { UsageService } from './usage.service.js'
@@ -33,10 +33,10 @@ export class UsageStage implements EventStageHandler {
 
   constructor (private readonly deps: UsageStageDeps) {}
 
-  async handle (event: CommunityEvent): Promise<void> {
+  async handle (event: CommunityEvent): Promise<EventStageResult> {
     const type = EVENT_TO_USAGE[event.type]
     if (type == null) {
-      return
+      return continueStage()
     }
     try {
       await this.deps.usage.record({
@@ -49,5 +49,6 @@ export class UsageStage implements EventStageHandler {
       const message = error instanceof Error ? error.message : String(error)
       logger.error('Failed to record usage event', { type, botId: event.botId, error: message })
     }
+    return continueStage()
   }
 }

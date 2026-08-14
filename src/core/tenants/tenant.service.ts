@@ -15,6 +15,11 @@ export class TenantService {
     return await this.repo.create(input)
   }
 
+  /**
+   * Tenants are the top-level auth boundary; lookups by their own id/key (used
+   * by the API-key middleware and the default-tenant bootstrap) are system-level
+   * identity operations, not cross-tenant data access.
+   */
   async findById (id: string): Promise<Tenant | null> {
     return await this.repo.findById(id)
   }

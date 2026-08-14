@@ -76,7 +76,7 @@ export const createCredentialsController = (deps: CredentialsControllerDeps): Cr
         next(createNotFoundError('Bot not found'))
         return
       }
-      const credentials = await deps.credentialService.listByBot(bot.id)
+      const credentials = await deps.credentialService.listByBotAndTenant(bot.tenantId, bot.id)
       res.json({ data: credentials.map(toPublicCredential) })
     } catch (err) {
       next(err)

@@ -42,8 +42,8 @@ export class CredentialService {
     })
   }
 
-  async listByBot (botId: string): Promise<BotCredential[]> {
-    return await this.repo.findByBot(botId)
+  async listByBotAndTenant (tenantId: string, botId: string): Promise<BotCredential[]> {
+    return await this.repo.findByBotAndTenant(tenantId, botId)
   }
 
   async getByIdAndTenant (id: string, tenantId: string): Promise<BotCredential | null> {

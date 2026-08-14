@@ -155,6 +155,11 @@ export class BotManager {
     logger.info('Bot stopped', { tenantId, botId })
   }
 
+  /**
+   * Resumes every active bot on process boot. The global findByStatus('active')
+   * query is an intentional system-level bootstrap operation: no request path
+   * reaches this and each bot is started under its own tenant scope.
+   */
   async startAll (): Promise<void> {
     const active = await this.deps.bots.findByStatus('active')
     for (const bot of active) {

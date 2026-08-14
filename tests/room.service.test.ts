@@ -82,7 +82,7 @@ describe('RoomService', () => {
     await service.join(room, adapter)
     expect(adapter.joinRoom).toHaveBeenCalledWith('ch_abc')
     expect(seen).toContain('room.joined')
-    const updated = await repo.findById(room.id)
+    const updated = await repo.findByIdAndTenant(room.id, 'tenant-1')
     expect(updated?.status).toBe('active')
     expect(updated?.joinedAt).toBeDefined()
   })
@@ -101,7 +101,7 @@ describe('RoomService', () => {
     await service.leave(room, adapter)
     expect(adapter.leaveRoom).toHaveBeenCalledWith('ch_abc')
     expect(seen).toContain('room.left')
-    const updated = await repo.findById(room.id)
+    const updated = await repo.findByIdAndTenant(room.id, 'tenant-1')
     expect(updated?.status).toBe('inactive')
   })
 

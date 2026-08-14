@@ -30,7 +30,7 @@ export const createUsageController = (deps: UsageControllerDeps): UsageControlle
         next(createNotFoundError('Bot not found'))
         return
       }
-      const data = await deps.analyticsService.summarizeBot(bot.id)
+      const data = await deps.analyticsService.summarizeBot(bot.tenantId, bot.id)
       res.json({ data })
     } catch (err) {
       next(err)
@@ -48,7 +48,7 @@ export const createUsageController = (deps: UsageControllerDeps): UsageControlle
       const limit = typeof raw === 'string' && /^\d+$/.test(raw)
         ? Math.min(Math.max(parseInt(raw, 10), 1), MAX_EVENT_LIMIT)
         : DEFAULT_EVENT_LIMIT
-      const data = await deps.usageService.listByBot(bot.id, limit)
+      const data = await deps.usageService.listByBotAndTenant(bot.tenantId, bot.id, limit)
       res.json({ data })
     } catch (err) {
       next(err)

@@ -23,9 +23,9 @@ export interface AnalyticsServiceDeps {
 export class AnalyticsService {
   constructor (private readonly deps: AnalyticsServiceDeps) {}
 
-  async summarizeBot (botId: string): Promise<UsageSummary> {
-    const usage = await this.deps.usage.summarize(botId)
-    const rooms = await this.deps.rooms.findByBot(botId)
+  async summarizeBot (tenantId: string, botId: string): Promise<UsageSummary> {
+    const usage = await this.deps.usage.summarizeByBotAndTenant(tenantId, botId)
+    const rooms = await this.deps.rooms.findByBotAndTenant(botId, tenantId)
     const roomIds = rooms.map((r) => r.id)
     const users = await this.deps.members.countDistinctUsers(roomIds)
 

@@ -58,6 +58,8 @@ import {
 
 const tenantAKey = 'key-tenant-a'
 const tenantBKey = 'key-tenant-b'
+/** First InMemoryTenantRepository row, assigned to the tenant owning tenantAKey. */
+const tenantAId = 'tenant_1'
 const AI_ANSWER = '42 Jan'
 
 /** A fake platform adapter that records what the bot sent and invited. */
@@ -234,7 +236,7 @@ describe('MVP definition of done (spec §32)', () => {
     const roomId = await createRoom(botId, externalRoomId)
     const startRes = await fetch(api(`/v1/bots/${botId}/start`), { method: 'POST', headers: headers(tenantAKey) })
     expect(startRes.status).toBe(200)
-    const room = await roomRepo.findById(roomId)
+    const room = await roomRepo.findByIdAndTenant(roomId, tenantAId)
     expect(room).not.toBeNull()
     return { botId, room: room as BotRoom }
   }
@@ -260,10 +262,10 @@ describe('MVP definition of done (spec §32)', () => {
     const adapterA = adapters.get('uA')
     expect(adapterA).toBeDefined()
     expect(adapterA!.joinRoom).toHaveBeenCalledWith('ch_A')
-    expect((await roomRepo.findById(roomId))?.status).toBe('active')
+    expect((await roomRepo.findByIdAndTenant(roomId, tenantAId))?.status).toBe('active')
 
     // 5. The platform delivers a new member's question (real sync path).
-    const room = await roomRepo.findById(roomId)
+    const room = await roomRepo.findByIdAndTenant(roomId, tenantAId)
     adapterA!.messages = [
       { id: 'm1', roomId: 'ch_A', userId: 'u1', content: 'what is the capital of France?', timestamp: new Date() }
     ]
@@ -287,9 +289,9 @@ describe('MVP definition of done (spec §32)', () => {
     // 7. Room ends → leave → usage/event data recorded.
     await roomService.leave(room as BotRoom, adapterA!)
     await vi.waitFor(async () => {
-      const events = await usageRepo.listByBot(botId)
+      const events = await usageRepo.listByBotAndTenant(tenantAId, botId)
       expect(events.some((e) => e.type === 'room_leave')).toBe(true)
-      const summary = await usageService.summarize(botId)
+      const summary = await usageService.summarizeByBotAndTenant(tenantAId, botId)
       expect(summary.messages).toBe(2) // two message.created events
       expect(summary.aiRequests).toBe(1) // one AI decision
       expect(summary.aiResponses).toBe(1) // one AI response sent
@@ -325,8 +327,8 @@ describe('MVP definition of done (spec §32)', () => {
     expect(adapterA!.invites).toEqual([])
 
     // Usage is scoped per bot.
-    const summaryA = await usageService.summarize(a.botId)
-    const summaryB = await usageService.summarize(b.botId)
+    const summaryA = await usageService.summarizeByBotAndTenant(tenantAId, a.botId)
+    const summaryB = await usageService.summarizeByBotAndTenant(tenantAId, b.botId)
     expect(summaryA.aiResponses).toBe(0)
     expect(summaryB.aiResponses).toBe(1)
   })

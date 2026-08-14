@@ -47,11 +47,6 @@ export class InMemoryBotRepository implements BotRepository {
     return clone(bot)
   }
 
-  async findById (id: string): Promise<Bot | null> {
-    const row = this.rows.get(id)
-    return row == null ? null : clone(row)
-  }
-
   async findByIdAndTenant (id: string, tenantId: string): Promise<Bot | null> {
     const row = this.rows.get(id)
     return row != null && row.tenantId === tenantId ? clone(row) : null
@@ -106,11 +101,6 @@ export class InMemoryRoomRepository implements RoomRepository {
     return clone(room)
   }
 
-  async findById (id: string): Promise<BotRoom | null> {
-    const row = this.rows.get(id)
-    return row == null ? null : clone(row)
-  }
-
   async findByIdAndTenant (id: string, tenantId: string): Promise<BotRoom | null> {
     const row = this.rows.get(id)
     return row != null && row.tenantId === tenantId ? clone(row) : null
@@ -119,10 +109,6 @@ export class InMemoryRoomRepository implements RoomRepository {
   async findByIdAndTenantAndBot (id: string, tenantId: string, botId: string): Promise<BotRoom | null> {
     const row = this.rows.get(id)
     return row != null && row.tenantId === tenantId && row.botId === botId ? clone(row) : null
-  }
-
-  async findByBot (botId: string): Promise<BotRoom[]> {
-    return [...this.rows.values()].filter((r) => r.botId === botId).map(clone)
   }
 
   async findByBotAndTenant (botId: string, tenantId: string): Promise<BotRoom[]> {
@@ -134,10 +120,6 @@ export class InMemoryRoomRepository implements RoomRepository {
       r.tenantId === tenantId && r.botId === botId && r.externalRoomId === externalRoomId
     )
     return row == null ? null : clone(row)
-  }
-
-  async findByStatus (status: string): Promise<BotRoom[]> {
-    return [...this.rows.values()].filter((r) => r.status === status).map(clone)
   }
 
   async findByTenantAndStatus (tenantId: string, status: string): Promise<BotRoom[]> {
@@ -212,11 +194,6 @@ export class InMemoryCredentialRepository implements CredentialRepository {
     return clone(credential)
   }
 
-  async findById (id: string): Promise<BotCredential | null> {
-    const row = this.rows.get(id)
-    return row == null ? null : clone(row)
-  }
-
   async findByIdAndTenant (id: string, tenantId: string): Promise<BotCredential | null> {
     const row = this.rows.get(id)
     return row != null && row.tenantId === tenantId ? clone(row) : null
@@ -227,8 +204,8 @@ export class InMemoryCredentialRepository implements CredentialRepository {
     return rows.length > 0 ? clone(rows[rows.length - 1]) : null
   }
 
-  async findByBot (botId: string): Promise<BotCredential[]> {
-    return [...this.rows.values()].filter((c) => c.botId === botId).map(clone)
+  async findByBotAndTenant (tenantId: string, botId: string): Promise<BotCredential[]> {
+    return [...this.rows.values()].filter((c) => c.tenantId === tenantId && c.botId === botId).map(clone)
   }
 
   async findByTenant (tenantId: string): Promise<BotCredential[]> {
@@ -267,20 +244,20 @@ export class InMemoryUsageRepository implements UsageRepository {
     return clone(event)
   }
 
-  async countByBotAndType (botId: string, type: UsageType): Promise<number> {
-    return this.rows.filter((r) => r.event.botId === botId && r.event.type === type).length
+  async countByBotAndTypeAndTenant (tenantId: string, botId: string, type: UsageType): Promise<number> {
+    return this.rows.filter((r) => r.event.tenantId === tenantId && r.event.botId === botId && r.event.type === type).length
   }
 
-  async listByBot (botId: string, limit = 50): Promise<UsageEvent[]> {
+  async listByBotAndTenant (tenantId: string, botId: string, limit = 50): Promise<UsageEvent[]> {
     return [...this.rows]
-      .filter((r) => r.event.botId === botId)
+      .filter((r) => r.event.tenantId === tenantId && r.event.botId === botId)
       .sort((a, b) => b.seq - a.seq)
       .slice(0, limit)
       .map((r) => clone(r.event))
   }
 
-  async summarize (botId: string): Promise<UsageSummary> {
-    const count = async (type: UsageType): Promise<number> => await this.countByBotAndType(botId, type)
+  async summarizeByBotAndTenant (tenantId: string, botId: string): Promise<UsageSummary> {
+    const count = async (type: UsageType): Promise<number> => await this.countByBotAndTypeAndTenant(tenantId, botId, type)
     const [messages, aiResponses, aiRequests, speakerInvites, automationActions] = await Promise.all([
       count('message_received'),
       count('ai_response'),

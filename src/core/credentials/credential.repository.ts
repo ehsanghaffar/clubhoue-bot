@@ -25,10 +25,9 @@ export interface CredentialUpdateInput {
 
 export interface CredentialRepository {
   create: (input: CredentialCreateInput) => Promise<BotCredential>
-  findById: (id: string) => Promise<BotCredential | null>
   findByIdAndTenant: (id: string, tenantId: string) => Promise<BotCredential | null>
   findActiveByBot: (tenantId: string, botId: string) => Promise<BotCredential | null>
-  findByBot: (botId: string) => Promise<BotCredential[]>
+  findByBotAndTenant: (tenantId: string, botId: string) => Promise<BotCredential[]>
   findByTenant: (tenantId: string) => Promise<BotCredential[]>
   update: (tenantId: string, id: string, patch: CredentialUpdateInput) => Promise<BotCredential | null>
   delete: (tenantId: string, id: string) => Promise<void>
@@ -38,11 +37,6 @@ export class MongoCredentialRepository implements CredentialRepository {
   async create (input: CredentialCreateInput): Promise<BotCredential> {
     const doc = await BotCredentialModel.create(input)
     return toBotCredential(doc)
-  }
-
-  async findById (id: string): Promise<BotCredential | null> {
-    const doc = await BotCredentialModel.findById(id).lean()
-    return doc == null ? null : toBotCredential(doc)
   }
 
   async findByIdAndTenant (id: string, tenantId: string): Promise<BotCredential | null> {
@@ -57,8 +51,8 @@ export class MongoCredentialRepository implements CredentialRepository {
     return doc == null ? null : toBotCredential(doc)
   }
 
-  async findByBot (botId: string): Promise<BotCredential[]> {
-    const docs = await BotCredentialModel.find({ botId }).sort({ createdAt: -1 }).lean()
+  async findByBotAndTenant (tenantId: string, botId: string): Promise<BotCredential[]> {
+    const docs = await BotCredentialModel.find({ tenantId, botId }).sort({ createdAt: -1 }).lean()
     return docs.map(toBotCredential)
   }
 

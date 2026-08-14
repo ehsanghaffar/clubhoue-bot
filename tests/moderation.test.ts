@@ -229,7 +229,7 @@ describe('moderation pipeline', () => {
     const { bus, usage } = harness
     bus.publish(makeMessageEvent('u-bad', 'what is 2+2?'))
     await new Promise((resolve) => setTimeout(resolve, 20))
-    const summary = await usage.summarize('bot-1')
+    const summary = await usage.summarizeByBotAndTenant('tenant-1', 'bot-1')
     expect(summary.messages).toBe(0)
     expect(summary.aiRequests).toBe(0)
     expect(summary.aiResponses).toBe(0)

@@ -123,7 +123,7 @@ describe('automation pipeline', () => {
     await vi.waitFor(() => {
       expect(adapter.sent).toEqual(['Hi Sara!'])
     })
-    const summary = await usageService.summarize(bot.id)
+    const summary = await usageService.summarizeByBotAndTenant('tenant-1', bot.id)
     expect(summary.automationActions).toBe(1)
   })
 
@@ -156,7 +156,7 @@ describe('automation pipeline', () => {
 
     expect(resolveContext).not.toHaveBeenCalled()
     expect(adapter.sent).toEqual([])
-    expect((await usageService.summarize(bot.id)).automationActions).toBe(0)
+    expect((await usageService.summarizeByBotAndTenant('tenant-1', bot.id)).automationActions).toBe(0)
   })
 
   it('does not record usage when context resolution fails', async () => {
@@ -171,7 +171,7 @@ describe('automation pipeline', () => {
       expect(resolveContext).toHaveBeenCalled()
     })
     expect(adapter.sent).toEqual([])
-    expect((await usageService.summarize(bot.id)).automationActions).toBe(0)
+    expect((await usageService.summarizeByBotAndTenant('tenant-1', bot.id)).automationActions).toBe(0)
   })
 
   it('stops the pipeline when an earlier stage throws', async () => {

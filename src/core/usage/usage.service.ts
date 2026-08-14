@@ -28,15 +28,15 @@ export class UsageService {
     return await this.deps.repo.record(input)
   }
 
-  async countByBotAndType (botId: string, type: UsageType): Promise<number> {
-    return await this.deps.repo.countByBotAndType(botId, type)
+  async countByBotAndTypeAndTenant (tenantId: string, botId: string, type: UsageType): Promise<number> {
+    return await this.deps.repo.countByBotAndTypeAndTenant(tenantId, botId, type)
   }
 
-  async summarize (botId: string): Promise<UsageSummary> {
-    return await this.deps.repo.summarize(botId)
+  async summarizeByBotAndTenant (tenantId: string, botId: string): Promise<UsageSummary> {
+    return await this.deps.repo.summarizeByBotAndTenant(tenantId, botId)
   }
 
-  async listByBot (botId: string, limit = 50): Promise<UsageEvent[]> {
-    return await this.deps.repo.listByBot(botId, limit)
+  async listByBotAndTenant (tenantId: string, botId: string, limit = 50): Promise<UsageEvent[]> {
+    return await this.deps.repo.listByBotAndTenant(tenantId, botId, limit)
   }
 }

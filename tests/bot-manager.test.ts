@@ -70,7 +70,7 @@ describe('BotManager', () => {
     markInvalid: vi.fn(),
     decryptForRuntime: async () => ({ token: 'tok', externalAccountId: 'ext-1', externalAccountName: 'helper' }),
     createCredential: vi.fn(),
-    listByBot: vi.fn(),
+    listByBotAndTenant: vi.fn(),
     getByIdAndTenant: vi.fn(),
     revoke: vi.fn(),
     deleteCredential: vi.fn()
@@ -109,8 +109,8 @@ describe('BotManager', () => {
     await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
 
     await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
-    expect((await botRepo.findById(bot.id))?.status).toBe('active')
-    const room = await roomRepo.findByBot(bot.id)
+    expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
+    const room = await roomRepo.findByBotAndTenant(bot.id, 'tenant-1')
     expect(room[0].status).toBe('active')
     expect(adapter.ping).toHaveBeenCalledWith('M84V9RyJ')
   })
@@ -120,7 +120,7 @@ describe('BotManager', () => {
 
     await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
     await botManager.stopBot({ tenantId: 'tenant-1', botId: bot.id })
-    expect((await botRepo.findById(bot.id))?.status).toBe('stopped')
+    expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('stopped')
   })
 
   it('startAll restarts previously active bots', async () => {
@@ -128,7 +128,7 @@ describe('BotManager', () => {
     await botRepo.update(bot.tenantId, bot.id, { status: 'active' })
 
     await botManager.startAll()
-    expect((await botRepo.findById(bot.id))?.status).toBe('active')
+    expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
   })
 
   it('starts and stops the per-room active ping loop while the room is active', async () => {
@@ -150,7 +150,7 @@ describe('BotManager', () => {
       const pingCallsAfterStop = ping.mock.calls.length
       await vi.advanceTimersByTimeAsync(180_000)
       expect(ping.mock.calls.length).toBe(pingCallsAfterStop)
-      expect((await roomRepo.findById(room.id))?.status).toBe('active')
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('active')
     } finally {
       vi.useRealTimers()
     }
@@ -164,7 +164,7 @@ describe('BotManager', () => {
     const joinsAfterFirst = (adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length
     await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
 
-    expect((await botRepo.findById(bot.id))?.status).toBe('active')
+    expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
     expect((adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length).toBe(joinsAfterFirst)
   })
 

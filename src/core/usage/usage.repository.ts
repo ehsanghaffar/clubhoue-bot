@@ -9,9 +9,9 @@ import { UsageEventModel, toUsageEvent } from '../../models/usageEvent.js'
 
 export interface UsageRepository {
   record: (input: UsageEventCreateInput) => Promise<UsageEvent>
-  countByBotAndType: (botId: string, type: UsageType) => Promise<number>
-  listByBot: (botId: string, limit?: number) => Promise<UsageEvent[]>
-  summarize: (botId: string) => Promise<UsageSummary>
+  countByBotAndTypeAndTenant: (tenantId: string, botId: string, type: UsageType) => Promise<number>
+  listByBotAndTenant: (tenantId: string, botId: string, limit?: number) => Promise<UsageEvent[]>
+  summarizeByBotAndTenant: (tenantId: string, botId: string) => Promise<UsageSummary>
 }
 
 export class MongoUsageRepository implements UsageRepository {
@@ -26,21 +26,21 @@ export class MongoUsageRepository implements UsageRepository {
     return toUsageEvent(doc)
   }
 
-  async countByBotAndType (botId: string, type: UsageType): Promise<number> {
-    return await UsageEventModel.countDocuments({ botId, type })
+  async countByBotAndTypeAndTenant (tenantId: string, botId: string, type: UsageType): Promise<number> {
+    return await UsageEventModel.countDocuments({ tenantId, botId, type })
   }
 
-  async listByBot (botId: string, limit = 50): Promise<UsageEvent[]> {
-    const docs = await UsageEventModel.find({ botId })
+  async listByBotAndTenant (tenantId: string, botId: string, limit = 50): Promise<UsageEvent[]> {
+    const docs = await UsageEventModel.find({ tenantId, botId })
       .sort({ timestamp: -1 })
       .limit(limit)
       .lean()
     return docs.map(toUsageEvent)
   }
 
-  async summarize (botId: string): Promise<UsageSummary> {
+  async summarizeByBotAndTenant (tenantId: string, botId: string): Promise<UsageSummary> {
     const count = async (type: UsageType): Promise<number> =>
-      await this.countByBotAndType(botId, type)
+      await this.countByBotAndTypeAndTenant(tenantId, botId, type)
 
     const [messages, aiResponses, aiRequests, speakerInvites, automationActions] =
       await Promise.all([

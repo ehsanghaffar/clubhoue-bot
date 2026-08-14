@@ -17,13 +17,10 @@ export interface RoomUpdateInput {
 
 export interface RoomRepository {
   create: (input: BotRoomCreateInput) => Promise<BotRoom>
-  findById: (id: string) => Promise<BotRoom | null>
   findByIdAndTenant: (id: string, tenantId: string) => Promise<BotRoom | null>
   findByIdAndTenantAndBot: (id: string, tenantId: string, botId: string) => Promise<BotRoom | null>
-  findByBot: (botId: string) => Promise<BotRoom[]>
   findByBotAndTenant: (botId: string, tenantId: string) => Promise<BotRoom[]>
   findByExternalRoomId: (tenantId: string, botId: string, externalRoomId: string) => Promise<BotRoom | null>
-  findByStatus: (status: BotRoomStatus) => Promise<BotRoom[]>
   findByTenantAndStatus: (tenantId: string, status: BotRoomStatus) => Promise<BotRoom[]>
   update: (tenantId: string, id: string, patch: RoomUpdateInput) => Promise<BotRoom | null>
   delete: (tenantId: string, id: string) => Promise<void>
@@ -41,11 +38,6 @@ export class MongoRoomRepository implements RoomRepository {
     return toBotRoom(doc)
   }
 
-  async findById (id: string): Promise<BotRoom | null> {
-    const doc = await BotRoomModel.findById(id).lean()
-    return doc == null ? null : toBotRoom(doc)
-  }
-
   async findByIdAndTenant (id: string, tenantId: string): Promise<BotRoom | null> {
     const doc = await BotRoomModel.findOne({ _id: id, tenantId }).lean()
     return doc == null ? null : toBotRoom(doc)
@@ -56,11 +48,6 @@ export class MongoRoomRepository implements RoomRepository {
     return doc == null ? null : toBotRoom(doc)
   }
 
-  async findByBot (botId: string): Promise<BotRoom[]> {
-    const docs = await BotRoomModel.find({ botId }).sort({ createdAt: -1 }).lean()
-    return docs.map(toBotRoom)
-  }
-
   async findByBotAndTenant (botId: string, tenantId: string): Promise<BotRoom[]> {
     const docs = await BotRoomModel.find({ botId, tenantId }).sort({ createdAt: -1 }).lean()
     return docs.map(toBotRoom)
@@ -69,11 +56,6 @@ export class MongoRoomRepository implements RoomRepository {
   async findByExternalRoomId (tenantId: string, botId: string, externalRoomId: string): Promise<BotRoom | null> {
     const doc = await BotRoomModel.findOne({ tenantId, botId, externalRoomId }).lean()
     return doc == null ? null : toBotRoom(doc)
-  }
-
-  async findByStatus (status: BotRoomStatus): Promise<BotRoom[]> {
-    const docs = await BotRoomModel.find({ status }).lean()
-    return docs.map(toBotRoom)
   }
 
   async findByTenantAndStatus (tenantId: string, status: BotRoomStatus): Promise<BotRoom[]> {

@@ -54,14 +54,14 @@ describe('UsageService', () => {
     await service.record({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', type: 'ai_request' })
     await service.record({ tenantId: 'tenant-1', botId: 'bot-2', roomId: 'room-2', type: 'message_received' })
 
-    expect(await service.countByBotAndType('bot-1', 'message_received')).toBe(2)
-    expect(await service.countByBotAndType('bot-1', 'ai_request')).toBe(1)
+    expect(await service.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'message_received')).toBe(2)
+    expect(await service.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'ai_request')).toBe(1)
   })
 
   it('lists events for a bot, newest first', async () => {
     await service.record({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', type: 'message_received' })
     await service.record({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', type: 'ai_response' })
-    const events = await service.listByBot('bot-1')
+    const events = await service.listByBotAndTenant('tenant-1', 'bot-1')
     expect(events).toHaveLength(2)
     expect(events[0].type).toBe('ai_response')
   })
@@ -72,7 +72,7 @@ describe('UsageService', () => {
     await service.record({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', type: 'ai_request' })
     await service.record({ tenantId: 'tenant-1', botId: 'bot-1', roomId: 'room-1', type: 'ai_response' })
 
-    const summary = await service.summarize('bot-1')
+    const summary = await service.summarizeByBotAndTenant('tenant-1', 'bot-1')
     expect(summary.messages).toBe(2)
     expect(summary.aiRequests).toBe(1)
     expect(summary.aiResponses).toBe(1)
@@ -91,12 +91,12 @@ describe('UsageStage', () => {
     await stage.handle(makeEvent({ type: 'room.left' }))
     await stage.handle(makeEvent({ type: 'user.joined' }))
 
-    expect(await repo.countByBotAndType('bot-1', 'room_join')).toBe(1)
-    expect(await repo.countByBotAndType('bot-1', 'message_received')).toBe(1)
-    expect(await repo.countByBotAndType('bot-1', 'speaker_invite')).toBe(1)
-    expect(await repo.countByBotAndType('bot-1', 'room_leave')).toBe(1)
+    expect(await repo.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'room_join')).toBe(1)
+    expect(await repo.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'message_received')).toBe(1)
+    expect(await repo.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'speaker_invite')).toBe(1)
+    expect(await repo.countByBotAndTypeAndTenant('tenant-1', 'bot-1', 'room_leave')).toBe(1)
     // user.joined has no usage mapping.
-    expect((await repo.listByBot('bot-1')).length).toBe(4)
+    expect((await repo.listByBotAndTenant('tenant-1', 'bot-1')).length).toBe(4)
   })
 
   it('swallows recorder errors so the pipeline continues', async () => {
@@ -124,7 +124,7 @@ describe('AnalyticsService', () => {
     await members.ensureSeen(roomA.id, 'u-2')
 
     const analytics = new AnalyticsService({ usage: usageRepo, rooms, members })
-    const summary = await analytics.summarizeBot('bot-1')
+    const summary = await analytics.summarizeBot('tenant-1', 'bot-1')
 
     expect(summary.messages).toBe(1)
     expect(summary.rooms).toBe(2)

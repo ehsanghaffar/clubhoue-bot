@@ -18,9 +18,12 @@ export interface BotUpdateInput {
 
 export interface BotRepository {
   create: (input: BotCreateInput) => Promise<Bot>
-  findById: (id: string) => Promise<Bot | null>
   findByIdAndTenant: (id: string, tenantId: string) => Promise<Bot | null>
   findByTenant: (tenantId: string) => Promise<Bot[]>
+  /**
+   * Intentionally global, not tenant-scoped: used by the bot manager to
+   * restart every active bot on process boot. No request path reaches this.
+   */
   findByStatus: (status: BotStatus) => Promise<Bot[]>
   update: (tenantId: string, id: string, patch: BotUpdateInput) => Promise<Bot | null>
   delete: (tenantId: string, id: string) => Promise<void>
@@ -37,11 +40,6 @@ export class MongoBotRepository implements BotRepository {
       welcomeMessage: input.welcomeMessage
     })
     return toBot(doc)
-  }
-
-  async findById (id: string): Promise<Bot | null> {
-    const doc = await BotModel.findById(id).lean()
-    return doc == null ? null : toBot(doc)
   }
 
   async findByIdAndTenant (id: string, tenantId: string): Promise<Bot | null> {

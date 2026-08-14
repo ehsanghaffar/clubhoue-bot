@@ -35,9 +35,15 @@ export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
       return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: false }
     }
 
-    const key = buildActionKey(event.id, AI_RULE_ID, 'ai_response')
-    const claimed = await deps.actions.claim(event.tenantId, key)
-    if (!claimed) {
+    const key = buildActionKey(event.tenantId, event.id, AI_RULE_ID, 'ai_response')
+    const claim = await deps.actions.claim(event.tenantId, key, {
+      actionType: 'ai_response',
+      ruleId: AI_RULE_ID,
+      eventId: event.id,
+      botId: event.botId,
+      roomId: event.roomId
+    })
+    if (!claim.acquired) {
       return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: true }
     }
 
@@ -56,7 +62,8 @@ export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
         success: true
       }
     } catch (error) {
-      await deps.actions.release(event.tenantId, key)
+      const message = error instanceof Error ? error.message : String(error)
+      await deps.actions.markFailed(event.tenantId, key, message)
       throw error
     }
   }

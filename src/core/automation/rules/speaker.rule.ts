@@ -49,9 +49,15 @@ export const createSpeakerRule = (deps: SpeakerRuleDeps): AutomationRule => {
         return { ruleId: SPEAKER_RULE_ID, ruleName: SPEAKER_RULE_NAME, action: 'none', success: false }
       }
 
-      const key = buildActionKey(event.id, SPEAKER_RULE_ID, 'speaker_invite')
-      const claimed = await deps.actions.claim(event.tenantId, key)
-      if (!claimed) {
+      const key = buildActionKey(event.tenantId, event.id, SPEAKER_RULE_ID, 'speaker_invite')
+      const claim = await deps.actions.claim(event.tenantId, key, {
+        actionType: 'speaker_invite',
+        ruleId: SPEAKER_RULE_ID,
+        eventId: event.id,
+        botId: event.botId,
+        roomId: event.roomId
+      })
+      if (!claim.acquired) {
         return { ruleId: SPEAKER_RULE_ID, ruleName: SPEAKER_RULE_NAME, action: 'none', success: true }
       }
 
@@ -65,7 +71,8 @@ export const createSpeakerRule = (deps: SpeakerRuleDeps): AutomationRule => {
           success: true
         }
       } catch (error) {
-        await deps.actions.release(event.tenantId, key)
+        const message = error instanceof Error ? error.message : String(error)
+        await deps.actions.markFailed(event.tenantId, key, message)
         throw error
       }
     }

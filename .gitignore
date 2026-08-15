@@ -121,3 +121,6 @@ dist
 # Jetbrains IDE
 .idea/
 .DS_Store
+__MACOSX
+mongodb
+package-lock.json

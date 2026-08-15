@@ -1,0 +1,50 @@
+/**
+ * @license
+ * @copyright Ehsanghaffar.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
+ */
+import mongoose from 'mongoose'
+import logger from '../../utils/logger.js'
+
+mongoose.set('strictQuery', true)
+
+function normalizeMongoURL (url: string | undefined): string {
+  if (!url) {
+    return 'mongodb://127.0.0.1:27017/clubhouse'
+  }
+  return url.replace('mongodb://localhost', 'mongodb://127.0.0.1')
+}
+
+function redactMongoURL (url: string | undefined): string {
+  return normalizeMongoURL(url).replace(/\/\/.*@/, '//***@')
+}
+
+interface ConnectionParams {
+  serverSelectionTimeoutMS: number
+  family: number
+}
+
+const connectDB = async (): Promise<typeof mongoose> => {
+  try {
+    const mongoURL = normalizeMongoURL(process.env.MONGODB_URL)
+    logger.info('Connecting to MongoDB:', { url: redactMongoURL(mongoURL) })
+
+    const connectionParams: ConnectionParams = {
+      serverSelectionTimeoutMS: 5000,
+      family: 4
+    }
+
+    await mongoose.connect(mongoURL, connectionParams)
+    logger.info('Connected to Database successfully')
+    return mongoose
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    logger.error('Database connection failed:', { error: message })
+    logger.error('Connection URL:', { url: redactMongoURL(process.env.MONGODB_URL) })
+    logger.error('Make sure MongoDB is running on 127.0.0.1:27017')
+    process.exit(1)
+  }
+}
+
+export default connectDB

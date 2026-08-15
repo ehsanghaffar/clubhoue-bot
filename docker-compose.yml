@@ -1,14 +1,36 @@
-version: '3.9'
-services: 
+services:
     club:
-      build:
-          context: .
-      env_file: ./.env
-      command: yarn start
-      volumes: 
-          - .:/app/
-          - /app/node_modules
-      ports:
-          - "4004:4000"
-      expose:
-          - "4004"
+        build: .
+        container_name: clubmaster
+        restart: always
+        env_file: .env
+        environment:
+            - NODE_ENV=development
+            - MONGODB_URL=mongodb://club_database:27017/clubhouse
+        command: pnpm run dev
+        volumes:
+            - .:/app
+            - /app/node_modules
+        ports:
+            - "4000:4000"
+        networks:
+            - club_network
+        depends_on:
+            - club_database
+
+    club_database:
+        image: "mongo:6"
+        container_name: club_database
+        ports:
+            - "27020:27017"
+        volumes:
+            - club_database-data:/data/db
+        networks:
+            - club_network
+
+volumes:
+    club_database-data:
+
+networks:
+    club_network:
+        driver: bridge

@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies (installed inside the container)
+node_modules
+
+# Build artifacts (rebuilt in the image)
+dist
+
+# Secrets - never bake these into an image
+.env
+.env.*
+profile.json
+
+# Runtime logs
+logs
+*.log
+
+# IDE / OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Dev-only
+coverage
+.nyc_output
+

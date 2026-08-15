@@ -1,64 +1,63 @@
 # Security
 
-Security measures implemented in the MVP. Also see the repo `SECURITY.md` for the vulnerability reporting policy.
+This document summarizes the security properties of the application **as implemented today**, and clearly separates *implemented protections* from *operational recommendations*.
 
-## Authentication
+## Implemented protections
 
-- **`/v1`:** `x-api-key` resolves to an **active tenant** (`TenantService`), and a tenant context is attached to the request.
+### Authentication (API key)
 
-## Tenant isolation
+- Every `/v1` route requires the `x-api-key` header (`authentication` middleware in [`src/api/middleware/authentication.ts`](../src/api/middleware/authentication.ts)).
+- The key is resolved to a tenant via `TenantService.findByApiKey`.
+- Missing key → 401 `UNAUTHORIZED "Missing API key"`; unknown key **or suspended tenant** → 401 `UNAUTHORIZED "Invalid API key"`.
+- The tenant is attached to `req.tenant` and a `tenantContext` guard ensures it exists before handlers run.
 
-All resource access is tenant-scoped **at both the authorization boundary and the repository layer**:
+### Tenant isolation
 
-- **Controllers + middleware:** `/v1` resource access goes through authorization loaders (`requireBot`, `requireRoom`, `requireCredential`). A resource belonging to another tenant returns `404`.
-- **Defense in depth — repositories:** every tenant-owned mutation (`update`, `delete`) on bots, rooms, and credentials now **requires `tenantId` as a parameter** and scopes the query by `{ _id, tenantId }`. A cross-tenant write matches nothing. Reads prefer the `findByIdAndTenant` family. This ensures another internal service cannot bypass the controller and reach another tenant's data.
-- **Credential deletion** is a non-disclosure no-op for a missing or cross-tenant credential (returns void, not 404) so callers cannot probe credential existence across tenants.
+- Every model carries `tenantId`; all repositories scope queries by tenant (see [database.md](./database.md)).
+- Ownership middleware (`requireBot`, `requireRoom`, `requireCredential` in [`src/api/middleware/authorization.ts`](../src/api/middleware/authorization.ts)) loads resources by `id + tenantId`. A resource that exists but belongs to another tenant resolves to **404 `NOT_FOUND`** — never 403 — so cross-tenant existence is not leaked.
+- Verified by `authorization.test.ts`, `http-tenant-isolation.test.ts`, and `cross-tenant-security.test.ts`.
 
-Integration tests cover the full cross-tenant matrix (read/update/delete across bot, room, credential).
+### Credential encryption
 
-## Credentials at rest
+- Clubhouse credential tokens are encrypted at rest with **AES-256-GCM** before storage; only the encrypted envelope is persisted (see [security/credentials.md](./security/credentials.md)).
+- API responses strip the encrypted token via `toPublicCredential` (see [api.md](./api.md)).
+- `CREDENTIAL_ENCRYPTION_KEY` is **required in production**; a `DEV_ONLY_KEY` fallback is used outside production (production throws if unset).
 
-- Platform tokens are encrypted with **AES-256-GCM** before persistence (`src/core/credentials/credential-encryption.ts`); envelopes are JSON `{ v, iv, tag, data }` and tampering is detectable via the auth tag.
-- The key comes from `CREDENTIAL_ENCRYPTION_KEY` (64-char hex used directly, otherwise scrypt-stretched to 32 bytes).
-- **Production enforcement:** if `NODE_ENV=production` and the key is missing, startup **fails** (`getMissingEnvVars` + the encryption module throw). There is no silent fallback to a known key in production. Outside production, an unset key falls back to a documented development-only key with a warning.
-- **Key rotation / loss:** rotating the key makes previously-encrypted credentials unrecoverable (envelopes are encrypted with the key that was set when they were written). Losing the key means the encrypted credentials can never be decrypted. See [`.env.example`](../.env.example) and [`docs/deployment.md`](deployment.md) for the required format.
-- Ciphertext is **never returned** by the API; the only plaintext boundary is `BotService.createAdapter` just before an adapter is built.
+### Secret handling
 
-## Input validation & abuse
+- All configuration comes from environment variables (see [configuration.md](./configuration.md)).
+- `.dockerignore` excludes `.env*` and `profile.json` so secrets cannot be baked into images (see [deployment.md](./deployment.md)).
+- Plaintext secrets are never written to logs by the application.
 
-- Request bodies are validated with Joi (`validateBody`) on create/update routes.
-- Rate limiting: 100 requests/minute per IP on `/v1` (`express-rate-limit`).
-- The bot's own messages are suppressed in AI automation (no self-echo loops).
+### Rate limiting
 
-## Moderation before AI
+- `express-rate-limit` is applied to the `/v1` router: **100 requests / 60 s window** per client, responding `429` `RATE_LIMITED` (see [app.ts](../src/app.ts)).
+- A separate **message rate limit** applies to AI-triggered `message.created` processing (default 10 / 60 s per room+user, in-memory — see [moderation.md](./moderation.md)).
 
-The event pipeline runs a **moderation stage before automation/AI** (`src/core/moderation/moderation-stage.ts`). A blocked message (blocked user, blocked keyword, or per bot+room+user rate limit) returns `block` and never reaches the AI rules or the usage stage. Moderation is gated by each room's `moderationEnabled` setting (default off).
+### Input validation
 
-## API docs exposure
+- All request bodies are validated with Joi schemas (`abortEarly: false`) before handlers run; invalid input → 400 `VALIDATION_ERROR` (see [api.md](./api.md), [error-handling.md](./error-handling.md)).
+- Length limits are enforced (e.g. bot name 1–100, message 1–2000, room id 1–200).
 
-`/api-docs` (Swagger UI) and `/openapi.json` are **public**: they serve only route/parameter schemas and expose no credentials or tenant data.
+### Container security
 
-## Error handling
+- Production image runs as the non-root `node` user; only production dependencies are installed; `init: true` in the prod compose file (see [deployment.md](./deployment.md)).
 
-The global error handler normalizes errors into `{ "error": { "type", "message" } }` and prevents internal details/stack traces from leaking to clients.
+### Dependency audit (CI)
 
-## Supply chain
+- CI runs `pnpm audit` and **fails on any critical vulnerability**; high+ advisories are surfaced but non-blocking (see [ci.md](./ci.md)).
 
-- CI runs `pnpm audit`; **critical** vulnerabilities fail the build (high+ are surfaced).
-- `pnpm-lock.yaml` is committed; CI installs with `--frozen-lockfile`.
-- Dependency tree is currently clean (0 advisories at all severities).
+## Operational recommendations (not enforced by code)
 
-## Containers & secrets
+These are *not* implemented protections — they are deployment/branch-management practices the repo's comments recommend:
 
-- Multi-stage Dockerfile, runtime runs as the non-root `node` user.
-- Secrets are injected at runtime via `.env.production` — never baked into the image (`.dockerignore` excludes `.env*`).
-- `.env.production` is gitignored; `.env.example` documents the required variables (including `CREDENTIAL_ENCRYPTION_KEY`) without real values.
+- **Branch protection** on `main`/`develop` requiring the CI `checks` and `dependency-audit` jobs is recommended by the workflow comments but is **not configured in this repository** (see [ci.md](./ci.md)).
+- **Network isolation / TLS termination / firewall rules** for the exposed `4000` port are outside the application code.
+- **Key rotation / credential expiry enforcement** — the application does not enforce credential rotation or expiry; `BotCredential.status` supports `revoked` but the API does not auto-rotate.
+- **Secure hosting of `CREDENTIAL_ENCRYPTION_KEY` and `API_KEY`** (secret manager) is an operational concern; the app expects them in the environment.
 
-## Deployment topology
+## Security-relevant notes / limitations
 
-- The production compose runs a **single app process** (`api` + `mongo`). There is no separate worker and no Redis in the MVP — Redis and the worker are future infrastructure and are not provisioned because nothing in the MVP uses them.
-
-## See also
-
-- [`docs/deployment.md`](deployment.md) — environment variables and CI.
-- [`docs/platforms.md`](platforms.md) — the credential/decryption boundary.
+- The in-memory stores (AI cooldown, message rate limiter) are per-process and reset on restart (see [limitations.md](./limitations.md)).
+- The `SECURITY.md` file in the repo root is boilerplate placeholder text, not a live security policy (see [limitations.md](./limitations.md)).
+- `src/middlewares/api-key.ts` (a legacy `requireApiKey` middleware) exists but is **unused** — authentication is handled by `src/api/middleware/authentication.ts`.

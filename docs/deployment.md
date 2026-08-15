@@ -1,87 +1,56 @@
 # Deployment
 
-How to run the platform locally, in Docker, and how CI validates it.
+This document describes how the application is built and deployed as it exists today. Deployment is **Docker-based** with a single application runtime plus MongoDB.
 
-## Local development
+## Containers / services
 
-Requires Node.js 22 and pnpm 10 (the repo pins `packageManager: pnpm@10.0.0`).
+### `docker-compose.prod.yml` — production
 
-```bash
-pnpm install
-cp .env.example .env      # fill in API_KEY, OPENAI_API_KEY, etc.
-pnpm dev                  # nodemon + tsx (auto-reload)
-pnpm build && pnpm start  # compiled production run
-pnpm test                 # vitest
-```
+Two services:
 
-Useful scripts: `pnpm typecheck`, `pnpm lint`, `pnpm build` (`tsc` → `dist/`), `pnpm start` (`node dist/server.js`), `pnpm start:worker` (`node dist/worker.js`).
+| Service | Image | Purpose |
+|---|---|---|
+| `api` | built from `Dockerfile` (tagged `clubhouse-full-api:prod`) | The full application: HTTP server + BotManager + event processing in one process |
+| `mongo` | `mongo:6` | MongoDB with a persistent volume `mongo_data` |
 
-## Docker
+- `api` sets `NODE_ENV=production` and `MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse`, and reads remaining secrets from `env_file: .env.production`.
+- `api` waits for `mongo` to be healthy (`depends_on: condition: service_healthy`); `mongo` uses `mongosh` ping as its healthcheck.
+- Port mapping `4000:4000` (HTTP).
+- `api` also has its own container healthcheck hitting `http://127.0.0.1:4000/health`.
+- The compose file explicitly documents the **single-runtime MVP**: the `api` service is the only process that owns a live BotManager runtime. There is **deliberately no worker service** — [`src/worker.ts`](../src/worker.ts) is future infrastructure and must not run alongside the API in this MVP. Redis is likewise **not provisioned** (nothing in the MVP uses it).
 
-A multi-stage `Dockerfile` (build + slim runtime) produces a non-root image with a healthcheck.
+### `docker-compose.yml` — development
 
-**Development** (app + MongoDB):
+Only the `club_database` service is active: a `mongo:6` container on port `27017` with a named volume. The `club` app service is **entirely commented out** — dev is expected to run the app directly on the host (see README "Running Locally") against this Mongo.
 
-```bash
-docker compose up -d
-# App:  http://localhost:4000
-# Mongo: mongodb://club_database:27017/clubhouse (host port 27020)
-```
+## Docker image (`Dockerfile`)
 
-**Production** (api + mongo):
+Multi-stage, `node:22-alpine`:
 
-```bash
-cp .env.example .env.production   # fill in real secrets (incl. CREDENTIAL_ENCRYPTION_KEY)
-docker compose -f docker-compose.prod.yml up -d --build
-```
+1. **Builder**: enables pnpm via corepack (`pnpm@10.0.0`), `pnpm install --frozen-lockfile`, copies source, runs `pnpm run build` (`tsc`).
+2. **Runner**: sets `NODE_ENV=production`, copies `package.json`, `pnpm-lock.yaml`, `dist/`, and `start.sh` from the builder, installs **only** production deps (`pnpm install --prod --frozen-lockfile`), runs as the non-root `node` user, `EXPOSE 4000`, `HEALTHCHECK` on `/health`, `CMD ["./start.sh"]`.
 
-| Service | Role |
-| --- | --- |
-| `api` | HTTP API on port `4000`; the ONLY live BotManager runtime (room loops, automation, AI, usage), healthcheck on `/health` |
-| `mongo` | MongoDB 6, persistent volume |
+`.dockerignore` excludes `.git`, `node_modules`, `dist`, all `.env*`, `profile.json`, `logs`, IDE files, and coverage — so no secrets can be baked into the image.
 
-The MVP is a single-process deployment by design: there is **no separate worker
-service** and **no Redis**. Redis and the worker are future infrastructure
-(Redis-backed queue / dedup upgrade path) and are deliberately not provisioned
-because nothing in the MVP uses them. Keys and credentials are injected at
-runtime via `.env.production` and are **never** baked into the image.
+## Startup entrypoint (`start.sh`)
 
-## Worker architecture (FUTURE — not active in the MVP)
-
-- **MVP (single process):** the API process owns the live BotManager runtime;
-  bot room loops, moderation, automation, and AI run in-process. The queue and
-  scheduler are NOT started.
-- **Future:** a standalone worker process (`src/worker.ts` → `dist/worker.js`)
-  becomes the production runner for a Scheduler → Queue (Redis/BullMQ) → Worker
-  architecture. Until then `src/worker.ts` is a stub that must not boot live
-  bots. Do not run it alongside the API in this MVP — it would create a second
-  live bot runtime.
+`NODE_ENV == production` → `pnpm start` (`node dist/server.js`); otherwise → `pnpm dev`. So in the production image the compiled `dist/server.js` runs.
 
 ## Environment variables
 
-See `.env.example` for the full list. The key ones:
+See [configuration.md](./configuration.md) for the full reference. In production at least these are required (from [`environment.ts`](../src/config/environment.ts)):
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `PORT` | No | `4000` | HTTP port |
-| `API_KEY` | **Yes** | — | Legacy API key; server won't boot without it |
-| `MONGODB_URL` | **Yes** | `mongodb://127.0.0.1:27017/clubhouse` | MongoDB connection string |
-| `OPENAI_API_KEY` | **Yes** | — | OpenAI key for the chatbot/AI |
-| `AGORA_KEY` / `PUBNUB_PUB_KEY` / `PUBNUB_SUB_KEY` | **Yes** | — | Clubhouse integration keys |
-| `CREDENTIAL_ENCRYPTION_KEY` | **Prod only** | — | 64-char hex (or any value, scrypt-stretched to 32 bytes). **Required in production** — startup fails if missing (no silent dev-key fallback). Losing it makes encrypted credentials unrecoverable |
-| `INVITE_ALLOW_LIST` | No | — | Comma-separated user ids allowed to request a stage invite |
-| `OPENAI_MODEL`, `OPENAI_MAX_TOKENS`, `OPENAI_TEMPERATURE` | No | `gpt-4o-mini` / `150` / `0.4` | AI defaults (authoritative default in code) |
-| `LOG_LEVEL` | No | `info` | Winston log level |
+- `API_KEY`, `OPENAI_API_KEY`, `MONGODB_URL`, `AGORA_KEY`, `PUBNUB_PUB_KEY`, `PUBNUB_SUB_KEY` — required in all environments.
+- `CREDENTIAL_ENCRYPTION_KEY` — required when `NODE_ENV=production`.
 
-## CI
+`.env.production` is mounted via `env_file` (created from `.env.example` — see compose header comment).
 
-`.github/workflows/ci.yml` runs on every push and pull request:
+## Ports and health checks
 
-```text
-install → typecheck → lint → test → build → dependency audit
-```
+- HTTP: `4000` (configurable via `PORT`, default 4000).
+- Mongo: `27017` inside the compose network (`mongo` is not exposed to the host in the production compose file).
+- Health: `GET /health` returns `{ status: 'ok', uptime }` (see [runtime.md](./runtime.md)).
 
-- `checks` job: typecheck, lint, test, build.
-- `dependency-audit` job: `pnpm audit`; high-severity advisories are surfaced, **critical** vulnerabilities fail the run.
+## Process model
 
-Configure branch protection on `main`/`develop` to require both jobs so failing code cannot be merged.
+One application process. The single `api` process owns: the HTTP server, the BotManager (room loops, active-ping timers), and event processing. See [runtime.md](./runtime.md) and [architecture.md](./architecture.md).

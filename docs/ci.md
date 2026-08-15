@@ -6,7 +6,7 @@ This document describes the GitHub Actions workflows in [`.github/workflows/`](.
 
 Triggers: push to `main`/`develop`, all pull requests, and manual `workflow_dispatch`.
 
-Every run uses Node 22 on `ubuntu-latest`, enables pnpm via corepack (`pnpm@10.0.0`), and installs with `pnpm install --frozen-lockfile` (locked, CI-safe).
+Every run uses Node 22 on `ubuntu-latest`, installs pnpm 10.0.0 via `pnpm/action-setup@v5` (before `actions/setup-node@v5`, which caches the pnpm store), and installs with `pnpm install --frozen-lockfile` (locked, CI-safe).
 
 ### `checks` job
 
@@ -40,7 +40,7 @@ Triggers: push to `main` (and manual).
 
 - Runs `pnpm exec tsx tools/loc.ts`, which regenerates the "lines of code" badge in `README.md`.
 - If the README changed, commits `docs: update lines of code [skip ci]` (via `github-actions[bot]`) and pushes.
-- Node 20 here (unlike `ci.yml` which uses Node 22).
+- Uses Node 22, matching `ci.yml`.
 - Requires `contents: write` permission (granted on this job only).
 
 This workflow does **not** gate anything; it is a housekeeping/maintenance job.

@@ -11,6 +11,16 @@ export const MAX_EVENT_ATTEMPTS = 3
 export const PROCESSED_EVENT_TTL_DAYS = 30
 
 /**
+ * Result of an atomic event claim. `claimed: true` is the only way a caller
+ * may run the processing stages; the returned `claimId` is a per-claim
+ * ownership token that must be presented to mark the event processed or
+ * failed, so a stale owner can never mutate a successor's claim.
+ */
+export type EventClaim =
+  | { claimed: true, claimId: string }
+  | { claimed: false }
+
+/**
  * Durable event persistence. The EventProcessor hands each normalized event to
  * the store, which is responsible for:
  *   - persisting it before any in-memory processing (crash safety),
@@ -32,21 +42,22 @@ export interface EventStore {
 
   /**
    * Atomically claims an event for processing, transitioning it pending ->
-   * processing and bumping the attempt counter. Returns true if this caller
-   * claimed it, false if it was already claimed/processed/failed. The atomic
-   * claim is what lets future workers process the same store without overlap.
+   * processing and bumping the attempt counter. Returns the claim ownership
+   * token if this caller claimed it, `{ claimed: false }` if it was already
+   * claimed/processed/failed. The atomic claim is what lets future workers
+   * process the same store without overlap.
    */
-  claim: (eventId: string, tenantId: string) => Promise<boolean>
+  claim: (eventId: string, tenantId: string) => Promise<EventClaim>
 
-  /** Marks a claimed event successfully processed. */
-  markProcessed: (eventId: string, tenantId: string) => Promise<void>
+  /** Marks a claimed event successfully processed (only while the claim is owned). */
+  markProcessed: (eventId: string, tenantId: string, claimId: string) => Promise<void>
 
   /**
    * Records a processing failure. Bounded retry: while attempts remain the
    * event is returned to pending so recovery re-processes it; once the attempt
    * limit is hit it is moved to a terminal failed state.
    */
-  markFailed: (eventId: string, tenantId: string, error: string) => Promise<void>
+  markFailed: (eventId: string, tenantId: string, claimId: string, error: string) => Promise<void>
 
   /**
    * Returns events that still need processing: any pending event, plus

@@ -5,14 +5,16 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import type { CommunityEvent } from './event.types.js'
-import type { EventStore } from './event-store.js'
+import type { EventStore, EventClaim } from './event-store.js'
 import type { CommunityEventStatus } from '../../models/communityEvent.js'
+import { randomUUID } from 'node:crypto'
 import { MAX_EVENT_ATTEMPTS } from './event-store.js'
 
 interface EventRow {
   event: CommunityEvent<unknown>
   status: CommunityEventStatus
   attempts: number
+  claimId?: string
   error?: string
   processedAt?: Date
   createdAt: Date
@@ -41,18 +43,20 @@ export class InMemoryEventStore implements EventStore {
     })
   }
 
-  async claim (eventId: string, tenantId: string): Promise<boolean> {
+  async claim (eventId: string, tenantId: string): Promise<EventClaim> {
+    const claimId = randomUUID()
     const row = this.rows.get(eventId)
     if (row != null) {
       if (row.event.tenantId !== tenantId) {
-        return false
+        return { claimed: false }
       }
       if (row.status === 'processed' || row.status === 'failed' || row.status === 'processing') {
-        return false
+        return { claimed: false }
       }
       row.status = 'processing'
       row.attempts += 1
-      return true
+      row.claimId = claimId
+      return { claimed: true, claimId }
     }
     // Optimistic claim: the event arrived via the bus but was not pre-persisted
     // (e.g. direct bus publish). Track it now so the failure path can retry it.
@@ -60,14 +64,15 @@ export class InMemoryEventStore implements EventStore {
       event: { id: eventId, tenantId, botId: '', roomId: '', platform: 'clubhouse', type: 'message.created', timestamp: new Date(), payload: {} },
       status: 'processing',
       attempts: 1,
+      claimId,
       createdAt: new Date()
     })
-    return true
+    return { claimed: true, claimId }
   }
 
-  async markProcessed (eventId: string, tenantId: string): Promise<void> {
+  async markProcessed (eventId: string, tenantId: string, claimId: string): Promise<void> {
     const row = this.rows.get(eventId)
-    if (row == null || row.event.tenantId !== tenantId) {
+    if (row == null || row.event.tenantId !== tenantId || row.status !== 'processing' || row.claimId !== claimId) {
       return
     }
     row.status = 'processed'
@@ -75,9 +80,9 @@ export class InMemoryEventStore implements EventStore {
     row.error = undefined
   }
 
-  async markFailed (eventId: string, tenantId: string, error: string): Promise<void> {
+  async markFailed (eventId: string, tenantId: string, claimId: string, error: string): Promise<void> {
     const row = this.rows.get(eventId)
-    if (row == null || row.event.tenantId !== tenantId) {
+    if (row == null || row.event.tenantId !== tenantId || row.status !== 'processing' || row.claimId !== claimId) {
       return
     }
     row.error = error.slice(0, 500)

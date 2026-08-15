@@ -4,8 +4,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
+import { randomUUID } from 'node:crypto'
 import type { CommunityEvent } from './event.types.js'
-import type { EventStore } from './event-store.js'
+import type { EventStore, EventClaim } from './event-store.js'
 import type { CommunityEventStatus } from '../../models/communityEvent.js'
 import { CommunityEventModel } from '../../models/communityEvent.js'
 import { computeExpiry, MAX_EVENT_ATTEMPTS } from './event-store.js'
@@ -51,9 +52,12 @@ export class MongoEventStore implements EventStore {
     })
   }
 
-  async claim (eventId: string, tenantId: string): Promise<boolean> {
+  async claim (eventId: string, tenantId: string): Promise<EventClaim> {
     const now = new Date()
     const staleBefore = new Date(now.getTime() - STALE_PROCESSING_MS)
+    // Unique per claim attempt; a reclaim atomically replaces the previous
+    // owner's claimId, revoking the old owner's authority immediately.
+    const claimId = randomUUID()
     // Atomically claim: pending always; processing only if stale (dead owner).
     // The tenant filter is the defense-in-depth boundary — a claim never moves
     // another tenant's event.
@@ -68,19 +72,24 @@ export class MongoEventStore implements EventStore {
         ]
       },
       {
-        $set: { status: 'processing', error: undefined },
+        $set: { status: 'processing', claimId, error: undefined },
         $inc: { attempts: 1 },
         $setOnInsert: { expiresAt: computeExpiry('processing', now) }
       },
       { new: true }
     ).lean()
-    return res != null
+    return res != null ? { claimed: true, claimId } : { claimed: false }
   }
 
-  async markProcessed (eventId: string, tenantId: string): Promise<void> {
+  async markProcessed (eventId: string, tenantId: string, claimId: string): Promise<void> {
     const now = new Date()
+    const staleBefore = new Date(now.getTime() - STALE_PROCESSING_MS)
+    // Only the current claim owner may mark the event processed: the record's
+    // claimId must match the caller's token and the claim must still be valid.
+    // A stale owner (whose claim was reclaimed) matches zero documents and
+    // cannot overwrite the successor's processing state.
     await CommunityEventModel.updateOne(
-      { _id: eventId, tenantId, status: 'processing' },
+      { _id: eventId, tenantId, status: 'processing', claimId, updatedAt: { $gte: staleBefore } },
       {
         $set: {
           status: 'processed',
@@ -92,8 +101,16 @@ export class MongoEventStore implements EventStore {
     )
   }
 
-  async markFailed (eventId: string, tenantId: string, error: string): Promise<void> {
-    const doc = await CommunityEventModel.findOne({ _id: eventId, tenantId }).lean()
+  async markFailed (eventId: string, tenantId: string, claimId: string, error: string): Promise<void> {
+    const now = new Date()
+    const staleBefore = new Date(now.getTime() - STALE_PROCESSING_MS)
+    const doc = await CommunityEventModel.findOne({
+      _id: eventId,
+      tenantId,
+      status: 'processing',
+      claimId,
+      updatedAt: { $gte: staleBefore }
+    }).lean()
     if (doc == null) {
       return
     }
@@ -101,7 +118,7 @@ export class MongoEventStore implements EventStore {
     const terminal = attempts >= MAX_EVENT_ATTEMPTS
     const status: CommunityEventStatus = terminal ? 'failed' : 'pending'
     await CommunityEventModel.updateOne(
-      { _id: eventId, tenantId },
+      { _id: eventId, tenantId, status: 'processing', claimId, updatedAt: { $gte: staleBefore } },
       {
         $set: {
           status,

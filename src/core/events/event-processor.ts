@@ -109,10 +109,11 @@ export class EventProcessor {
   }
 
   private async handle (event: CommunityEvent<unknown>): Promise<void> {
-    const claimed = await this.deps.eventStore.claim(event.id, event.tenantId)
-    if (!claimed) {
+    const claim = await this.deps.eventStore.claim(event.id, event.tenantId)
+    if (!claim.claimed) {
       return
     }
+    const { claimId } = claim
     try {
       for (const stage of this.stages) {
         let result: EventStageResult
@@ -121,7 +122,7 @@ export class EventProcessor {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           logger.error('Event stage threw', { stage: stage.name, type: event.type, error: message })
-          await this.deps.eventStore.markFailed(event.id, event.tenantId, message)
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, claimId, message)
           return
         }
         if (result.type === 'block') {
@@ -134,15 +135,15 @@ export class EventProcessor {
           break
         }
         if (result.type === 'retry') {
-          await this.deps.eventStore.markFailed(event.id, event.tenantId, result.reason)
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, claimId, result.reason)
           return
         }
         if (result.type === 'fail') {
-          await this.deps.eventStore.markFailed(event.id, event.tenantId, result.reason)
+          await this.deps.eventStore.markFailed(event.id, event.tenantId, claimId, result.reason)
           return
         }
       }
-      await this.deps.eventStore.markProcessed(event.id, event.tenantId)
+      await this.deps.eventStore.markProcessed(event.id, event.tenantId, claimId)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       logger.error('Event processing failed', {
@@ -151,7 +152,7 @@ export class EventProcessor {
         roomId: event.roomId,
         error: message
       })
-      await this.deps.eventStore.markFailed(event.id, event.tenantId, message)
+      await this.deps.eventStore.markFailed(event.id, event.tenantId, claimId, message)
     }
   }
 }

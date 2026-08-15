@@ -4,17 +4,21 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
-import { ActionRecordModel, type ActionRecordStatus } from '../../models/actionRecord.js'
+import { randomUUID } from 'node:crypto'
+import type { QueryFilter, UpdateQuery } from 'mongoose'
+import { ActionRecordModel, type ActionRecordDoc, type ActionRecordStatus } from '../../models/actionRecord.js'
 
 export type ActionType = 'ai_response' | 'welcome' | 'speaker_invite'
 
 /**
  * Explicit claim outcome. `acquired: true` is the only way a caller may
  * execute the external side effect; losers are told why they lost instead of
- * having to infer ownership from raw document state.
+ * having to infer ownership from raw document state. The returned `claimId`
+ * is a per-claim ownership token: every subsequent mutation of the record
+ * must present it, so a stale owner can never touch a successor's claim.
  */
 export type ActionClaim =
-  | { acquired: true }
+  | { acquired: true, claimId: string }
   | { acquired: false, reason: 'processing' | 'executed' | 'failed' }
 
 /** Ownership/identity fields stamped onto the record when it is first created. */
@@ -33,12 +37,12 @@ export interface ActionIdempotencyStore {
    * (`processing` with an active lease, `executed`, or terminal `failed`).
    */
   claim: (tenantId: string, key: string, metadata?: ActionClaimMetadata) => Promise<ActionClaim>
-  /** Marks a held claim as successfully executed (only while the lease is held). */
-  markExecuted: (tenantId: string, key: string) => Promise<void>
+  /** Marks a held claim as successfully executed (only while the claim is owned). */
+  markExecuted: (tenantId: string, key: string, claimId: string) => Promise<void>
   /** Records an external failure; leaves the action retryable until the attempt budget is spent. */
-  markFailed: (tenantId: string, key: string, error: string) => Promise<void>
+  markFailed: (tenantId: string, key: string, claimId: string, error: string) => Promise<void>
   /** Returns a held, unexecuted claim to `pending` without consuming the retry budget. */
-  release: (tenantId: string, key: string) => Promise<void>
+  release: (tenantId: string, key: string, claimId: string) => Promise<void>
 }
 
 /**
@@ -92,74 +96,82 @@ export class MongoActionIdempotencyStore implements ActionIdempotencyStore {
   async claim (tenantId: string, key: string, metadata?: ActionClaimMetadata): Promise<ActionClaim> {
     const now = new Date()
     const leaseUntil = new Date(now.getTime() + this.leaseMs)
+    // Unique per claim attempt; the successor's claimId replaces the previous
+    // owner's on reclaim, immediately revoking the old owner's authority.
+    const claimId = randomUUID()
 
-    const attempt = async (): Promise<ActionClaim> => {
-      const doc = await ActionRecordModel.findOneAndUpdate(
-        {
-          _id: key,
-          tenantId,
-          $or: [
-            { status: 'pending' },
-            { status: 'failed', attempts: { $lt: this.maxAttempts } },
-            { status: 'processing', leaseUntil: { $lt: now } }
-          ]
-        },
-        {
-          $set: {
-            status: 'processing',
-            claimedAt: now,
-            leaseUntil
-          },
-          $unset: { error: 1 },
-          $inc: { attempts: 1 },
-          $setOnInsert: {
-            _id: key,
-            tenantId,
-            actionType: metadata?.actionType,
-            ruleId: metadata?.ruleId,
-            eventId: metadata?.eventId,
-            botId: metadata?.botId,
-            roomId: metadata?.roomId
-          }
-        },
-        { new: true, upsert: true }
-      ).lean()
-
-      if (doc != null) {
-        return { acquired: true }
-      }
-
-      // The conditional transition matched nothing (executed, terminal failed,
-      // or processing under an active lease). Read the record only to report
-      // the reason — the ownership decision itself was already made atomically
-      // by the findOneAndUpdate above.
-      const current = await ActionRecordModel.findOne({ _id: key, tenantId }).lean()
-      if (current == null) {
-        return { acquired: false, reason: 'processing' }
-      }
-      return { acquired: false, reason: reasonFor(current.status) }
+    // The record may only transition to `processing` when it is `pending`,
+    // `failed` with retries remaining, or `processing` with an expired lease.
+    const claimable: QueryFilter<ActionRecordDoc> = {
+      _id: key,
+      tenantId,
+      $or: [
+        { status: 'pending' },
+        { status: 'failed', attempts: { $lt: this.maxAttempts } },
+        { status: 'processing', leaseUntil: { $lt: now } }
+      ]
     }
 
+    const transition: UpdateQuery<ActionRecordDoc> = {
+      $set: {
+        status: 'processing',
+        claimedAt: now,
+        leaseUntil,
+        claimId
+      },
+      $unset: { error: 1 },
+      $inc: { attempts: 1 },
+      $setOnInsert: {
+        _id: key,
+        tenantId,
+        actionType: metadata?.actionType,
+        ruleId: metadata?.ruleId,
+        eventId: metadata?.eventId,
+        botId: metadata?.botId,
+        roomId: metadata?.roomId
+      }
+    }
+
+    // 1. Existing claimable document: a single atomic findOneAndUpdate decides
+    //    the winner. Exactly one of N concurrent callers matches the filter;
+    //    the rest are rejected without an application-level lock.
+    const claimed = await ActionRecordModel.findOneAndUpdate(claimable, transition, { new: true }).lean()
+    if (claimed != null) {
+      return { acquired: true, claimId }
+    }
+
+    // 2. No claimable document (first claim of a fresh key): atomically create
+    //    it. A duplicate-key error means another caller just created the record
+    //    and owns it; we do NOT re-run this upsert, because the record is now
+    //    unclaimable and re-running would only re-raise the same error.
     try {
-      return await attempt()
-    } catch (err: unknown) {
-      // Concurrent upsert of the same _id: another caller created the record
-      // while we were inserting. Re-run the conditional transition; at most one
-      // caller can own the resulting `processing` state.
-      if ((err as { code?: number }).code === 11000) {
-        return await attempt()
+      const created = await ActionRecordModel.findOneAndUpdate(claimable, transition, { new: true, upsert: true }).lean()
+      if (created != null) {
+        return { acquired: true, claimId }
       }
-      throw err
+    } catch (err: unknown) {
+      if ((err as { code?: number }).code !== 11000) {
+        throw err
+      }
     }
+
+    // 3. The ownership decision was already made atomically above; read the
+    //    record only to report the current reason to the losing caller.
+    const current = await ActionRecordModel.findOne({ _id: key, tenantId }).lean()
+    if (current == null) {
+      return { acquired: false, reason: 'processing' }
+    }
+    return { acquired: false, reason: reasonFor(current.status) }
   }
 
-  async markExecuted (tenantId: string, key: string): Promise<void> {
+  async markExecuted (tenantId: string, key: string, claimId: string): Promise<void> {
     const now = new Date()
-    // Only the current lease holder may mark executed. Once the lease expires
-    // (and another caller reclaims), a stale owner's markExecuted becomes a
-    // no-op instead of overwriting the successor's state.
+    // Only the current claim owner may mark executed. The record's current
+    // claimId must match the caller's token and the lease must still be valid;
+    // a stale owner (whose lease expired and was reclaimed) matches zero
+    // documents and becomes a no-op instead of overwriting the successor.
     await ActionRecordModel.updateOne(
-      { _id: key, tenantId, status: 'processing', leaseUntil: { $gt: now } },
+      { _id: key, tenantId, status: 'processing', claimId, leaseUntil: { $gt: now } },
       {
         $set: { status: 'executed', executedAt: now, leaseUntil: null, claimedAt: null },
         $unset: { error: 1 }
@@ -167,12 +179,13 @@ export class MongoActionIdempotencyStore implements ActionIdempotencyStore {
     )
   }
 
-  async markFailed (tenantId: string, key: string, error: string): Promise<void> {
+  async markFailed (tenantId: string, key: string, claimId: string, error: string): Promise<void> {
     const now = new Date()
     const doc = await ActionRecordModel.findOne({
       _id: key,
       tenantId,
       status: 'processing',
+      claimId,
       leaseUntil: { $gt: now }
     }).lean()
     if (doc == null) {
@@ -182,17 +195,17 @@ export class MongoActionIdempotencyStore implements ActionIdempotencyStore {
     // once the budget is spent. The record is never marked executed on failure.
     const status: ActionRecordStatus = doc.attempts >= this.maxAttempts ? 'failed' : 'pending'
     await ActionRecordModel.updateOne(
-      { _id: key, tenantId, status: 'processing', leaseUntil: { $gt: now } },
+      { _id: key, tenantId, status: 'processing', claimId, leaseUntil: { $gt: now } },
       {
         $set: { status, error: error.slice(0, 500), leaseUntil: null, claimedAt: null }
       }
     )
   }
 
-  async release (tenantId: string, key: string): Promise<void> {
+  async release (tenantId: string, key: string, claimId: string): Promise<void> {
     const now = new Date()
     await ActionRecordModel.updateOne(
-      { _id: key, tenantId, status: 'processing', leaseUntil: { $gt: now } },
+      { _id: key, tenantId, status: 'processing', claimId, leaseUntil: { $gt: now } },
       {
         $set: { status: 'pending', leaseUntil: null, claimedAt: null },
         $unset: { error: 1 }
@@ -207,6 +220,7 @@ interface InMemoryRow {
   attempts: number
   claimedAt?: Date
   leaseUntil?: Date
+  claimId?: string
   executedAt?: Date
   error?: string
 }
@@ -239,6 +253,7 @@ export class InMemoryActionIdempotencyStore implements ActionIdempotencyStore {
     const now = Date.now()
     const scoped = this.scopedKey(tenantId, key)
     const row = this.rows.get(scoped)
+    const claimId = randomUUID()
 
     if (row != null) {
       const stale = row.status === 'processing' && row.leaseUntil != null && row.leaseUntil.getTime() <= now
@@ -258,8 +273,9 @@ export class InMemoryActionIdempotencyStore implements ActionIdempotencyStore {
       row.attempts += 1
       row.claimedAt = new Date(now)
       row.leaseUntil = new Date(now + this.leaseMs)
+      row.claimId = claimId
       row.error = undefined
-      return { acquired: true }
+      return { acquired: true, claimId }
     }
 
     this.rows.set(scoped, {
@@ -267,14 +283,15 @@ export class InMemoryActionIdempotencyStore implements ActionIdempotencyStore {
       status: 'processing',
       attempts: 1,
       claimedAt: new Date(now),
-      leaseUntil: new Date(now + this.leaseMs)
+      leaseUntil: new Date(now + this.leaseMs),
+      claimId
     })
-    return { acquired: true }
+    return { acquired: true, claimId }
   }
 
-  async markExecuted (tenantId: string, key: string): Promise<void> {
+  async markExecuted (tenantId: string, key: string, claimId: string): Promise<void> {
     const row = this.rows.get(this.scopedKey(tenantId, key))
-    if (row == null || !this.leaseActive(row, Date.now())) {
+    if (row == null || !this.leaseActive(row, Date.now()) || row.claimId !== claimId) {
       return
     }
     row.status = 'executed'
@@ -283,25 +300,27 @@ export class InMemoryActionIdempotencyStore implements ActionIdempotencyStore {
     row.error = undefined
   }
 
-  async markFailed (tenantId: string, key: string, error: string): Promise<void> {
+  async markFailed (tenantId: string, key: string, claimId: string, error: string): Promise<void> {
     const row = this.rows.get(this.scopedKey(tenantId, key))
-    if (row == null || !this.leaseActive(row, Date.now())) {
+    if (row == null || !this.leaseActive(row, Date.now()) || row.claimId !== claimId) {
       return
     }
     row.status = row.attempts >= this.maxAttempts ? 'failed' : 'pending'
     row.error = error.slice(0, 500)
     row.leaseUntil = undefined
     row.claimedAt = undefined
+    row.claimId = undefined
   }
 
-  async release (tenantId: string, key: string): Promise<void> {
+  async release (tenantId: string, key: string, claimId: string): Promise<void> {
     const row = this.rows.get(this.scopedKey(tenantId, key))
-    if (row == null || !this.leaseActive(row, Date.now())) {
+    if (row == null || !this.leaseActive(row, Date.now()) || row.claimId !== claimId) {
       return
     }
     row.status = 'pending'
     row.leaseUntil = undefined
     row.claimedAt = undefined
+    row.claimId = undefined
     row.error = undefined
   }
 

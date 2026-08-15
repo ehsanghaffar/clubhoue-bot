@@ -21,6 +21,7 @@ export interface CommunityEventRecord {
   payload: unknown
   status: CommunityEventStatus
   attempts: number
+  claimId?: string
   error?: string
   processedAt?: Date
   expiresAt?: Date
@@ -45,6 +46,7 @@ const communityEventSchema = new Schema<CommunityEventRecord>(
       index: true
     },
     attempts: { type: Number, default: 0 },
+    claimId: { type: String },
     error: { type: String },
     processedAt: { type: Date },
     // Retention: processed events expire after the TTL. Pending/processing/

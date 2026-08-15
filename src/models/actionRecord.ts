@@ -27,6 +27,7 @@ export interface ActionRecordDoc {
   attempts: number
   claimedAt?: Date | null
   leaseUntil?: Date | null
+  claimId?: string | null
   executedAt?: Date | null
   error?: string | null
   createdAt: Date
@@ -46,6 +47,7 @@ const actionRecordSchema = new Schema<ActionRecordDoc>(
     attempts: { type: Number, default: 0 },
     claimedAt: { type: Date, default: null },
     leaseUntil: { type: Date, default: null },
+    claimId: { type: String, default: null },
     executedAt: { type: Date, default: null },
     error: { type: String, default: null }
   },

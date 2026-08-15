@@ -256,7 +256,7 @@ Each bot is a normal Clubhouse user account. Identity for self-message filtering
 
 ### Active ping & sync
 
-When a bot joins a room, `BotManager` sends an immediate `activePing`, then repeats every `ACTIVE_PING_INTERVAL_MS` (default 3 min). Message sync runs on a separate interval per `botId:roomId`. Auth failures mark credentials invalid and stop room timers.
+When a bot joins a room, `BotManager` sends an immediate `activePing`, then repeats every `ACTIVE_PING_INTERVAL_MS` (default 3 min). The join-time ping retries with backoff (`JOIN_PING_RETRY_ATTEMPTS`, `JOIN_PING_RETRY_BASE_DELAY_MS`) on transient/network failures before falling back to the interval. Message sync runs on a separate interval per `botId:roomId`. Auth failures mark credentials invalid and stop room timers.
 
 ### AI & automation
 

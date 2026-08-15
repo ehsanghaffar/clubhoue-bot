@@ -51,7 +51,7 @@ Public room routes use the canonical Clubhouse **`externalRoomId`** (e.g. `M84V9
 
 - Bots are normal Clubhouse user accounts operated programmatically via encrypted credentials.
 - `externalAccountId` on the credential is the bot's Clubhouse identity for self-message detection and mention matching.
-- Active ping runs immediately after join, then every 2–5 minutes (`ACTIVE_PING_INTERVAL_MS`, default 180s).
+- Active ping runs immediately after join (retrying transient failures with backoff), then every 2–5 minutes (`ACTIVE_PING_INTERVAL_MS`, default 180s).
 - All platform room operations use `externalRoomId`.
 
 ## Error format

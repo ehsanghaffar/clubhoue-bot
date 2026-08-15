@@ -1,0 +1,63 @@
+# Production deployment: api + mongo (spec §26).
+#
+# Usage:
+#   cp .env.example .env.production   # fill in real secrets, then:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The MVP runs a SINGLE runtime: the `api` service boots the HTTP server and is
+# the ONLY process that owns a live BotManager runtime (bot room loops,
+# automation, AI, usage). There is deliberately NO separate worker service — the
+# standalone worker entry (`src/worker.ts`) is future infrastructure
+# (Scheduler -> Queue -> Worker) and must not run alongside the API in this MVP.
+# Redis is likewise future infrastructure (Redis-backed queue / dedup upgrade
+# path) and is not provisioned here because nothing in the MVP uses it.
+#
+# MongoDB is a managed dependency with a healthcheck; the API waits for it to
+# be healthy before starting.
+
+services:
+    api:
+        build: .
+        image: clubhouse-full-api:prod
+        container_name: clubhouse_api
+        restart: unless-stopped
+        init: true
+        env_file: .env.production
+        environment:
+            - NODE_ENV=production
+            - MONGODB_URL=mongodb://clubhouse_mongo:27017/clubhouse
+        depends_on:
+            mongo:
+                condition: service_healthy
+        ports:
+            - "4000:4000"
+        healthcheck:
+            test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4000/health"]
+            interval: 30s
+            timeout: 3s
+            retries: 3
+            start_period: 10s
+        networks:
+            - clubhouse
+
+    mongo:
+        image: mongo:6
+        container_name: clubhouse_mongo
+        restart: unless-stopped
+        volumes:
+            - mongo_data:/data/db
+        healthcheck:
+            test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            interval: 30s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        networks:
+            - clubhouse
+
+volumes:
+    mongo_data:
+
+networks:
+    clubhouse:
+        driver: bridge

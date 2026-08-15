@@ -13,5 +13,18 @@ export const REQUIRED_ENV_VARS = [
   'PUBNUB_SUB_KEY'
 ]
 
-export const getMissingEnvVars = (env: NodeJS.ProcessEnv = process.env): string[] =>
-  REQUIRED_ENV_VARS.filter((name) => !env[name])
+/**
+ * Variables required ONLY in production. `CREDENTIAL_ENCRYPTION_KEY` must be
+ * set in production so credentials are never encrypted with the known
+ * development-only fallback key; losing it makes encrypted credentials
+ * unrecoverable, so a missing key must fail startup rather than fall back.
+ */
+export const PROD_REQUIRED_ENV_VARS = ['CREDENTIAL_ENCRYPTION_KEY']
+
+export const getMissingEnvVars = (env: NodeJS.ProcessEnv = process.env): string[] => {
+  const missing = REQUIRED_ENV_VARS.filter((name) => !env[name])
+  if (env.NODE_ENV === 'production') {
+    missing.push(...PROD_REQUIRED_ENV_VARS.filter((name) => !env[name]))
+  }
+  return missing
+}

@@ -17,7 +17,9 @@
   },
   "scripts": {
     "start": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
     "start:dev": "pnpm exec tsx src/server.ts",
+    "start:dev:worker": "pnpm exec tsx src/worker.ts",
     "dev": "pnpm exec nodemon --exec \"pnpm exec tsx src/server.ts\"",
     "stop": "pm2 stop clubhouse-full-api",
     "prebuild": "rm -rf dist",

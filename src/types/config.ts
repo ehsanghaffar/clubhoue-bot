@@ -51,11 +51,3 @@ export interface Profile extends Application {
   verified?: boolean
   user?: UserProfile
 }
-
-export interface ApplicationConfig {
-  lastVersion: Application
-}
-
-export const application: ApplicationConfig = {
-  lastVersion: {}
-}

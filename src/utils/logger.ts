@@ -28,3 +28,24 @@ const logger: winston.Logger = winston.createLogger({
 })
 
 export default logger
+
+export const shutdownLogger = async (timeoutMs = 500): Promise<void> => {
+  try {
+    logger.info('Flushing and closing logger transports')
+    for (const transport of logger.transports) {
+      try {
+        // Some transports expose a close method that will flush and close underlying resources
+        if (typeof (transport as any).close === 'function') {
+          (transport as any).close()
+        }
+      } catch (e) {
+        // ignore individual transport errors
+      }
+    }
+    // Give transports a short moment to flush writes to disk/console
+    await new Promise(resolve => setTimeout(resolve, timeoutMs))
+  } catch (e) {
+    // swallow errors during shutdown logging
+  }
+}
+

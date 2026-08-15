@@ -63,7 +63,7 @@ export const createSpeakerRule = (deps: SpeakerRuleDeps): AutomationRule => {
 
       try {
         await context.inviteSpeaker(payload.userId)
-        await deps.actions.markExecuted(event.tenantId, key)
+        await deps.actions.markExecuted(event.tenantId, key, claim.claimId)
         return {
           ruleId: SPEAKER_RULE_ID,
           ruleName: SPEAKER_RULE_NAME,
@@ -72,7 +72,7 @@ export const createSpeakerRule = (deps: SpeakerRuleDeps): AutomationRule => {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        await deps.actions.markFailed(event.tenantId, key, message)
+        await deps.actions.markFailed(event.tenantId, key, claim.claimId, message)
         throw error
       }
     }

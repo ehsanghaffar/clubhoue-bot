@@ -47,7 +47,7 @@ export const createWelcomeRule = (deps: WelcomeRuleDeps): AutomationRule => ({
       const template = context.bot.welcomeMessage ?? DEFAULT_WELCOME_MESSAGE
       const message = template.replaceAll('{username}', username)
       await context.sendMessage(message)
-      await deps.actions.markExecuted(event.tenantId, key)
+      await deps.actions.markExecuted(event.tenantId, key, claim.claimId)
       return {
         ruleId: WELCOME_RULE_ID,
         ruleName: WELCOME_RULE_NAME,
@@ -56,7 +56,7 @@ export const createWelcomeRule = (deps: WelcomeRuleDeps): AutomationRule => ({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await deps.actions.markFailed(event.tenantId, key, message)
+      await deps.actions.markFailed(event.tenantId, key, claim.claimId, message)
       throw error
     }
   }

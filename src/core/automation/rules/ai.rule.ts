@@ -50,11 +50,11 @@ export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
     try {
       const answer = await deps.runner(event, context)
       if (answer == null) {
-        await deps.actions.release(event.tenantId, key)
+        await deps.actions.release(event.tenantId, key, claim.claimId)
         return { ruleId: AI_RULE_ID, ruleName: AI_RULE_NAME, action: 'none', success: false }
       }
       await context.sendMessage(answer)
-      await deps.actions.markExecuted(event.tenantId, key)
+      await deps.actions.markExecuted(event.tenantId, key, claim.claimId)
       return {
         ruleId: AI_RULE_ID,
         ruleName: AI_RULE_NAME,
@@ -63,7 +63,7 @@ export const createAiRule = (deps: AiRuleDeps): AutomationRule => ({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await deps.actions.markFailed(event.tenantId, key, message)
+      await deps.actions.markFailed(event.tenantId, key, claim.claimId, message)
       throw error
     }
   }

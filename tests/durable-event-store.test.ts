@@ -21,6 +21,14 @@ const makeEvent = (id: string, tenantId = 'tenant-1', overrides: Record<string, 
   ...overrides
 })
 
+const acquireClaim = async (store: InMemoryEventStore, id: string, tenantId: string): Promise<string> => {
+  const claim = await store.claim(id, tenantId)
+  if (!claim.claimed) {
+    throw new Error(`claim not acquired for ${id}`)
+  }
+  return claim.claimId
+}
+
 describe('InMemoryEventStore', () => {
   it('persists an event and is idempotent on duplicate id', async () => {
     const store = new InMemoryEventStore()
@@ -33,8 +41,8 @@ describe('InMemoryEventStore', () => {
   it('claims a pending event and transitions pending -> processing', async () => {
     const store = new InMemoryEventStore()
     await store.persist(makeEvent('evt-1'))
-    const claimed = await store.claim('evt-1', 'tenant-1')
-    expect(claimed).toBe(true)
+    const claim = await store.claim('evt-1', 'tenant-1')
+    expect(claim.claimed).toBe(true)
     expect(store.row('evt-1')?.status).toBe('processing')
     expect(store.row('evt-1')?.attempts).toBe(1)
   })
@@ -42,16 +50,16 @@ describe('InMemoryEventStore', () => {
   it('does not claim an event belonging to another tenant', async () => {
     const store = new InMemoryEventStore()
     await store.persist(makeEvent('evt-1', 'tenant-1'))
-    const claimed = await store.claim('evt-1', 'tenant-2')
-    expect(claimed).toBe(false)
+    const claim = await store.claim('evt-1', 'tenant-2')
+    expect(claim.claimed).toBe(false)
     expect(store.row('evt-1')?.status).toBe('pending')
   })
 
   it('marks a claimed event processed', async () => {
     const store = new InMemoryEventStore()
     await store.persist(makeEvent('evt-1'))
-    await store.claim('evt-1', 'tenant-1')
-    await store.markProcessed('evt-1', 'tenant-1')
+    const claimId = await acquireClaim(store, 'evt-1', 'tenant-1')
+    await store.markProcessed('evt-1', 'tenant-1', claimId)
     expect(store.row('evt-1')?.status).toBe('processed')
     expect(store.row('evt-1')?.processedAt).toBeInstanceOf(Date)
   })
@@ -59,10 +67,10 @@ describe('InMemoryEventStore', () => {
   it('does not double-claim an already-processed event', async () => {
     const store = new InMemoryEventStore()
     await store.persist(makeEvent('evt-1'))
-    await store.claim('evt-1', 'tenant-1')
-    await store.markProcessed('evt-1', 'tenant-1')
-    const claimedAgain = await store.claim('evt-1', 'tenant-1')
-    expect(claimedAgain).toBe(false)
+    const claimId = await acquireClaim(store, 'evt-1', 'tenant-1')
+    await store.markProcessed('evt-1', 'tenant-1', claimId)
+    const claimAgain = await store.claim('evt-1', 'tenant-1')
+    expect(claimAgain.claimed).toBe(false)
   })
 
   it('recovers pending events', async () => {
@@ -76,8 +84,8 @@ describe('InMemoryEventStore', () => {
   it('excludes processed events from recovery', async () => {
     const store = new InMemoryEventStore()
     await store.persist(makeEvent('evt-1'))
-    await store.claim('evt-1', 'tenant-1')
-    await store.markProcessed('evt-1', 'tenant-1')
+    const claimId = await acquireClaim(store, 'evt-1', 'tenant-1')
+    await store.markProcessed('evt-1', 'tenant-1', claimId)
     await store.persist(makeEvent('evt-2'))
     const recovered = await store.recover()
     expect(recovered.map((e) => e.id)).toEqual(['evt-2'])
@@ -87,8 +95,8 @@ describe('InMemoryEventStore', () => {
     it('returns a failed event to pending while attempts remain without double-counting the same attempt', async () => {
       const store = new InMemoryEventStore()
       await store.persist(makeEvent('evt-1'))
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'boom')
+      const claimId = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claimId, 'boom')
       expect(store.row('evt-1')?.status).toBe('pending')
       expect(store.row('evt-1')?.attempts).toBe(1)
       expect(store.row('evt-1')?.error).toBe('boom')
@@ -97,12 +105,12 @@ describe('InMemoryEventStore', () => {
     it('marks an event failed once the attempt limit is reached', async () => {
       const store = new InMemoryEventStore()
       await store.persist(makeEvent('evt-1'))
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-1')
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-2')
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-3')
+      const claim1 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim1, 'fail-1')
+      const claim2 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim2, 'fail-2')
+      const claim3 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim3, 'fail-3')
       expect(store.row('evt-1')?.status).toBe('failed')
       expect(store.row('evt-1')?.attempts).toBe(MAX_EVENT_ATTEMPTS)
     })
@@ -110,12 +118,12 @@ describe('InMemoryEventStore', () => {
     it('does not recover a terminally-failed event', async () => {
       const store = new InMemoryEventStore()
       await store.persist(makeEvent('evt-1'))
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-1')
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-2')
-      await store.claim('evt-1', 'tenant-1')
-      await store.markFailed('evt-1', 'tenant-1', 'fail-3')
+      const claim1 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim1, 'fail-1')
+      const claim2 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim2, 'fail-2')
+      const claim3 = await acquireClaim(store, 'evt-1', 'tenant-1')
+      await store.markFailed('evt-1', 'tenant-1', claim3, 'fail-3')
       const recovered = await store.recover()
       expect(recovered).toHaveLength(0)
     })
@@ -134,8 +142,8 @@ describe('InMemoryEventStore', () => {
 
   it('optimistically claims an event published directly to the bus (no persist)', async () => {
     const store = new InMemoryEventStore()
-    const claimed = await store.claim('direct-evt', 'tenant-1')
-    expect(claimed).toBe(true)
+    const claim = await store.claim('direct-evt', 'tenant-1')
+    expect(claim.claimed).toBe(true)
     expect(store.row('direct-evt')?.status).toBe('processing')
   })
 })

@@ -368,4 +368,195 @@ describe('BotManager', () => {
       vi.useRealTimers()
     }
   })
+
+  it('startup reconciliation verifies, rejoins, pings, and arms timers for a persisted active room that exists', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+      await roomRepo.update('tenant-1', room.id, { status: 'active' })
+
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+
+      // Order: verify existence → rejoin → activePing.
+      expect(adapter.getRoom).toHaveBeenCalledWith('M84V9RyJ')
+      expect(adapter.joinRoom).toHaveBeenCalledWith('M84V9RyJ')
+      expect(adapter.ping).toHaveBeenCalledWith('M84V9RyJ')
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('active')
+
+      // Timers are armed for the verified room.
+      const pingCalls = adapter.ping.mock.calls.length
+      const syncCalls = adapter.getMessages.mock.calls.length
+      await vi.advanceTimersByTimeAsync(180_000)
+      expect(adapter.ping.mock.calls.length).toBeGreaterThan(pingCalls)
+      expect(adapter.getMessages.mock.calls.length).toBeGreaterThan(syncCalls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('startup reconciliation deactivates a persisted active room that Clubhouse reports gone (404)', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+      await roomRepo.update('tenant-1', room.id, { status: 'active' })
+
+      const getRoom = vi.fn(async () => {
+        throw new ClubhouseApiError({ operation: 'getRoom', status: 404, kind: 'not_found' })
+      })
+      const runtimeAdapter = { ...adapter, getRoom }
+      vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+
+      expect(getRoom).toHaveBeenCalledWith('M84V9RyJ')
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('inactive')
+      expect(adapter.joinRoom).not.toHaveBeenCalled()
+      expect(adapter.ping).not.toHaveBeenCalled()
+
+      // No timers are armed for the deactivated room.
+      const pingCalls = adapter.ping.mock.calls.length
+      const syncCalls = adapter.getMessages.mock.calls.length
+      await vi.advanceTimersByTimeAsync(600_000)
+      expect(adapter.ping.mock.calls.length).toBe(pingCalls)
+      expect(adapter.getMessages.mock.calls.length).toBe(syncCalls)
+      expect(credentials.markInvalid).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('startup reconciliation leaves a room unchanged on a transient existence failure (500)', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+      await roomRepo.update('tenant-1', room.id, { status: 'active' })
+
+      const getRoom = vi.fn(async () => {
+        throw new ClubhouseApiError({ operation: 'getRoom', status: 500, kind: 'transient' })
+      })
+      const runtimeAdapter = { ...adapter, getRoom }
+      vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+
+      // Persistent state is untouched and the bot keeps running.
+      expect(getRoom).toHaveBeenCalledWith('M84V9RyJ')
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('active')
+      expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
+      expect(adapter.joinRoom).not.toHaveBeenCalled()
+      expect(adapter.ping).not.toHaveBeenCalled()
+      expect(credentials.markInvalid).not.toHaveBeenCalled()
+
+      // No timers are armed while the room existence is unconfirmed.
+      const pingCalls = adapter.ping.mock.calls.length
+      const syncCalls = adapter.getMessages.mock.calls.length
+      await vi.advanceTimersByTimeAsync(600_000)
+      expect(adapter.ping.mock.calls.length).toBe(pingCalls)
+      expect(adapter.getMessages.mock.calls.length).toBe(syncCalls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('startup reconciliation treats a 401 as a credential failure, not a missing room', async () => {
+    const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+    const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+    await roomRepo.update('tenant-1', room.id, { status: 'active' })
+
+    const getRoom = vi.fn(async () => {
+      throw new ClubhouseApiError({ operation: 'getRoom', status: 401, kind: 'authentication' })
+    })
+    const runtimeAdapter = { ...adapter, getRoom }
+    vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+    await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+
+    expect(credentials.markInvalid).toHaveBeenCalledWith('tenant-1', 'cred-1')
+    expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('error')
+    expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('error')
+    expect(adapter.joinRoom).not.toHaveBeenCalled()
+    expect(adapter.ping).not.toHaveBeenCalled()
+  })
+
+  it('runtime sync reports 404: deactivates the room and stops both timers without stopping the bot', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const room = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
+      await roomRepo.update('tenant-1', room.id, { status: 'active' })
+
+      const getMessages = vi.fn(async () => {
+        throw new ClubhouseApiError({ operation: 'getMessages', status: 404, kind: 'not_found' })
+      })
+      const runtimeAdapter = { ...adapter, getMessages }
+      vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('active')
+
+      // First sync tick observes the room is gone.
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(getMessages).toHaveBeenCalledWith('M84V9RyJ')
+      expect((await roomRepo.findByIdAndTenant(room.id, 'tenant-1'))?.status).toBe('inactive')
+
+      // Both the sync and ping timers are stopped.
+      const pingCalls = adapter.ping.mock.calls.length
+      const syncCalls = getMessages.mock.calls.length
+      await vi.advanceTimersByTimeAsync(600_000)
+      expect(adapter.ping.mock.calls.length).toBe(pingCalls)
+      expect(getMessages.mock.calls.length).toBe(syncCalls)
+
+      // The bot keeps running.
+      expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
+      expect(credentials.markInvalid).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('when one room disappears, only that room is deactivated; other rooms keep running', async () => {
+    vi.useFakeTimers()
+    try {
+      const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
+      const roomA = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'extA' })
+      const roomB = await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'extB' })
+      await roomRepo.update('tenant-1', roomA.id, { status: 'active' })
+      await roomRepo.update('tenant-1', roomB.id, { status: 'active' })
+
+      const getMessages = vi.fn(async (externalRoomId: string) => {
+        if (externalRoomId === 'extA') {
+          throw new ClubhouseApiError({ operation: 'getMessages', status: 404, kind: 'not_found' })
+        }
+        return []
+      })
+      const runtimeAdapter = { ...adapter, getMessages }
+      vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
+
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      expect((await roomRepo.findByIdAndTenant(roomA.id, 'tenant-1'))?.status).toBe('active')
+      expect((await roomRepo.findByIdAndTenant(roomB.id, 'tenant-1'))?.status).toBe('active')
+
+      // First sync tick: Room A is gone, Room B still live.
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect((await roomRepo.findByIdAndTenant(roomA.id, 'tenant-1'))?.status).toBe('inactive')
+      expect((await roomRepo.findByIdAndTenant(roomB.id, 'tenant-1'))?.status).toBe('active')
+      expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
+
+      const syncA = getMessages.mock.calls.filter(([id]) => id === 'extA').length
+      const syncB = getMessages.mock.calls.filter(([id]) => id === 'extB').length
+      const pingA = adapter.ping.mock.calls.filter(([id]) => id === 'extA').length
+      const pingB = adapter.ping.mock.calls.filter(([id]) => id === 'extB').length
+
+      await vi.advanceTimersByTimeAsync(180_000)
+      expect(getMessages.mock.calls.filter(([id]) => id === 'extA').length).toBe(syncA)
+      expect(getMessages.mock.calls.filter(([id]) => id === 'extB').length).toBe(syncB + 12)
+      expect(adapter.ping.mock.calls.filter(([id]) => id === 'extA').length).toBe(pingA)
+      expect(adapter.ping.mock.calls.filter(([id]) => id === 'extB').length).toBe(pingB + 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

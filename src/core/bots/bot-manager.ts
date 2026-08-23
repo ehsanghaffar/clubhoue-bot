@@ -168,6 +168,19 @@ export class BotManager {
       if (room.status === 'inactive' || room.status === 'error') {
         continue
       }
+      // Startup reconciliation: a Clubhouse room is ephemeral and may have
+      // ended while this process was down. A stored `active` room is verified
+      // against Clubhouse before re-establishing membership, so stored state
+      // is never trusted without confirmation. A live room is rejoined (a
+      // previous process's membership does not survive a restart); a gone room
+      // is deactivated without any timers; a transient/auth failure reuses the
+      // existing failure paths and leaves the persisted state untouched.
+      if (room.status === 'active') {
+        const live = await this.reconcileActiveRoom(tenantId, botId, room, adapter)
+        if (!live) {
+          continue
+        }
+      }
       if (room.status !== 'active' && room.status !== 'joining') {
         try {
           await this.deps.roomService.update(tenantId, room.id, { status: 'joining' })
@@ -274,7 +287,25 @@ export class BotManager {
     if (room == null || room.status !== 'active') {
       return 0
     }
-    return await this.deps.roomService.syncRoom(room, runtime.adapter)
+    try {
+      return await this.deps.roomService.syncRoom(room, runtime.adapter)
+    } catch (error) {
+      if (!this.isRoomNotFound(error)) {
+        // Transient/auth failures keep the existing retry behavior.
+        throw error
+      }
+      // The Clubhouse room ended while the bot was running. Deactivate only
+      // this room and stop its timers; the rest of the bot keeps running.
+      logger.warn('Clubhouse room ended; deactivating room and stopping its timers', {
+        tenantId: scope.tenantId,
+        botId: scope.botId,
+        roomId: room.id,
+        externalRoomId: room.externalRoomId
+      })
+      await this.deps.roomService.update(scope.tenantId, room.id, { status: 'inactive' })
+      this.onRoomInactive(scope.botId, scope.roomId)
+      return 0
+    }
   }
 
   async pingRoom (scope: RoomRuntimeScope): Promise<void> {
@@ -307,6 +338,59 @@ export class BotManager {
   /** Stops timers when a room becomes inactive, leaving, or error. */
   onRoomInactive (botId: string, roomId: string): void {
     this.clearRoomTimers(botId, roomId)
+  }
+
+  /**
+   * Startup reconciliation for a room persisted as `active`: confirms the
+   * Clubhouse room still exists (via `adapter.getRoom(room.externalRoomId)`)
+   * before re-establishing membership. Returns true when the room is live and
+   * startup should continue with join → activePing → timers.
+   *
+   * - 404/not_found: the Clubhouse room ended; deactivate the BotRoom (the
+   *   configuration stays in Mongo) and skip join/ping/timers.
+   * - 401/403: reuse the existing credential-authentication failure path; this
+   *   is never treated as "room does not exist".
+   * - transient (429/5xx/timeout/network): state is unknown; leave the
+   *   persisted room unchanged so a later start re-attempts.
+   */
+  private async reconcileActiveRoom (
+    tenantId: string,
+    botId: string,
+    room: BotRoom,
+    adapter: CommunityPlatformAdapter
+  ): Promise<boolean> {
+    try {
+      await adapter.getRoom(room.externalRoomId)
+    } catch (error) {
+      const clubhouseError = this.extractClubhouseError(error)
+      if (this.isRoomNotFound(error)) {
+        logger.warn('Clubhouse room no longer exists; deactivating room', {
+          tenantId,
+          botId,
+          roomId: room.id,
+          externalRoomId: room.externalRoomId
+        })
+        await this.deps.roomService.update(tenantId, room.id, { status: 'inactive' })
+        return false
+      }
+      if (clubhouseError?.authenticationFailure === true) {
+        await this.handleAuthFailure(tenantId, botId, room.id)
+        return false
+      }
+      logger.warn('Could not verify Clubhouse room existence; leaving room unchanged for retry', {
+        tenantId,
+        botId,
+        roomId: room.id,
+        externalRoomId: room.externalRoomId,
+        retryable: clubhouseError?.retryable ?? true,
+        status: clubhouseError?.status
+      })
+      return false
+    }
+    // The Clubhouse room still exists. Re-establish membership — a previous
+    // process's membership does not survive a restart.
+    await this.deps.roomService.join(room, adapter)
+    return true
   }
 
   private async ensureRoomRuntime (
@@ -461,6 +545,11 @@ export class BotManager {
       }
     }
     return undefined
+  }
+
+  /** True only when Clubhouse explicitly reports the room as gone (404/not_found). */
+  private isRoomNotFound (error: unknown): boolean {
+    return this.extractClubhouseError(error)?.kind === 'not_found'
   }
 
   private timerKey (botId: string, roomId: string): string {

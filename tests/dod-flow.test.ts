@@ -236,6 +236,8 @@ describe('MVP definition of done (spec §32)', () => {
     const roomId = await createRoom(botId, externalRoomId)
     const startRes = await fetch(api(`/v1/bots/${botId}/start`), { method: 'POST', headers: headers(tenantAKey) })
     expect(startRes.status).toBe(200)
+    const joinRes = await fetch(api(`/v1/bots/${botId}/rooms/${externalRoomId}/join`), { method: 'POST', headers: headers(tenantAKey) })
+    expect(joinRes.status).toBe(200)
     const room = await roomRepo.findByIdAndTenant(roomId, tenantAId)
     expect(room).not.toBeNull()
     return { botId, room: room as BotRoom }
@@ -256,9 +258,11 @@ describe('MVP definition of done (spec §32)', () => {
     // 3. Configure a room (auto-invite on for the speaker leg).
     const roomId = await createRoom(botId, 'ch_A', { autoInviteEnabled: true })
 
-    // 4. Start the bot → it joins the configured room.
+    // 4. Start the bot, then explicitly join the configured room.
     const startRes = await fetch(api(`/v1/bots/${botId}/start`), { method: 'POST', headers: headers(tenantAKey) })
     expect(startRes.status).toBe(200)
+    const joinRes = await fetch(api(`/v1/bots/${botId}/rooms/ch_A/join`), { method: 'POST', headers: headers(tenantAKey) })
+    expect(joinRes.status).toBe(200)
     const adapterA = adapters.get('uA')
     expect(adapterA).toBeDefined()
     expect(adapterA!.joinRoom).toHaveBeenCalledWith('ch_A')

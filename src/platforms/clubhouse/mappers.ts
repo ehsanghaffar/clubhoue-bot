@@ -27,6 +27,36 @@ export const mapRoom = (raw: ChannelResponse): Room => {
   }
 }
 
+/**
+ * Feed V3 nests channel cards under several presentation sections. Traverse
+ * only objects that look like channel records, then de-duplicate by channel
+ * id so callers receive a stable platform-neutral room list.
+ */
+export const mapAvailableRooms = (raw: unknown): Room[] => {
+  const rooms = new Map<string, Room>()
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (value == null || typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    const channel = typeof record.channel === 'string' ? record.channel : undefined
+    const channelId = typeof record.channel_id === 'string' || typeof record.channel_id === 'number'
+      ? String(record.channel_id)
+      : undefined
+    const hasRoomMetadata = typeof record.topic === 'string' || typeof record.is_active === 'boolean' ||
+      typeof record.num_speakers === 'number' || Array.isArray(record.users)
+    if ((channel != null || channelId != null) && hasRoomMetadata) {
+      const room = mapRoom(record as ChannelResponse)
+      if (room.id !== '') rooms.set(room.id, room)
+    }
+    Object.values(record).forEach(visit)
+  }
+  visit(raw)
+  return [...rooms.values()]
+}
+
 export const mapUser = (raw: UserResponse): User => {
   return {
     id: stringId(raw.user_id),

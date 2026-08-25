@@ -106,15 +106,15 @@ describe('BotManager', () => {
     expect(context).toBeNull()
   })
 
-  it('joins configured rooms and marks bot active on start', async () => {
+  it('keeps configured rooms unjoined when the bot starts', async () => {
     const bot = await botRepo.create({ tenantId: 'tenant-1', name: 'Helper', platform: 'clubhouse' })
     await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
 
     await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
     expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
     const room = await roomRepo.findByBotAndTenant(bot.id, 'tenant-1')
-    expect(room[0].status).toBe('active')
-    expect(adapter.ping).toHaveBeenCalledWith('M84V9RyJ')
+    expect(room[0].status).toBe('configured')
+    expect(adapter.joinRoom).not.toHaveBeenCalled()
   })
 
   it('stopBot marks the bot stopped and clears loops', async () => {
@@ -143,6 +143,7 @@ describe('BotManager', () => {
       vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
 
       await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      await botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: room.id })
       expect(ping).toHaveBeenCalledWith('M84V9RyJ')
       const callsAfterStart = ping.mock.calls.length
       await vi.advanceTimersByTimeAsync(180_000)
@@ -191,7 +192,7 @@ describe('BotManager', () => {
     ])
 
     expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
-    expect((adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect((adapter.joinRoom as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
   it('a stop that wins during an in-flight start leaves the bot stopped with no runtime (F-03)', async () => {
@@ -239,6 +240,7 @@ describe('BotManager', () => {
       await roomRepo.create({ tenantId: 'tenant-1', botId: bot.id, platform: 'clubhouse', externalRoomId: 'M84V9RyJ' })
 
       await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      await botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: (await roomRepo.findByBotAndTenant(bot.id, 'tenant-1'))[0].id })
       expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
 
       let pingCalls = (adapter.ping as ReturnType<typeof vi.fn>).mock.calls.length
@@ -257,6 +259,7 @@ describe('BotManager', () => {
       expect((adapter.getMessages as ReturnType<typeof vi.fn>).mock.calls.length).toBe(syncCalls)
 
       await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      for (const room of await roomRepo.findByBotAndTenant(bot.id, 'tenant-1')) await botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: room.id })
       expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
 
       pingCalls = (adapter.ping as ReturnType<typeof vi.fn>).mock.calls.length
@@ -290,6 +293,9 @@ describe('BotManager', () => {
       vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
 
       await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      for (const room of await roomRepo.findByBotAndTenant(bot.id, 'tenant-1')) {
+        await botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: room.id })
+      }
       expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
 
       await vi.advanceTimersByTimeAsync(180_000)
@@ -324,7 +330,8 @@ describe('BotManager', () => {
 
       // The join-time ping retries (with backoff) before giving up; advance
       // timers so those retries elapse while the start is in flight.
-      const startP = botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      const startP = botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: (await roomRepo.findByBotAndTenant(bot.id, 'tenant-1'))[0].id })
       await vi.advanceTimersByTimeAsync(10_000)
       await startP
       expect((await botRepo.findByIdAndTenant(bot.id, 'tenant-1'))?.status).toBe('active')
@@ -356,7 +363,8 @@ describe('BotManager', () => {
       const runtimeAdapter = { ...adapter, ping }
       vi.spyOn(botService, 'createAdapter').mockResolvedValue(runtimeAdapter as never)
 
-      const startP = botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      await botManager.startBot({ tenantId: 'tenant-1', botId: bot.id })
+      const startP = botManager.joinRoom({ tenantId: 'tenant-1', botId: bot.id, roomId: (await roomRepo.findByBotAndTenant(bot.id, 'tenant-1'))[0].id })
       await vi.advanceTimersByTimeAsync(10_000)
       await startP
 

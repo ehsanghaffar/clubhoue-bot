@@ -15,6 +15,7 @@ export interface BotRoomDoc {
   botId: string
   platform: Platform
   externalRoomId: string
+  title?: string
   status: BotRoomStatus
   settings: BotRoomSettings
   joinedAt?: Date
@@ -47,6 +48,7 @@ const botRoomSchema = new Schema<BotRoomDoc>(
     botId: { type: String, required: true, index: true },
     platform: { type: String, enum: ['clubhouse'], default: 'clubhouse' },
     externalRoomId: { type: String, required: true },
+    title: { type: String, required: false, trim: true, maxlength: 500 },
     status: {
       type: String,
       enum: ['configured', 'joining', 'active', 'leaving', 'inactive', 'error'],
@@ -72,6 +74,7 @@ export const toBotRoom = (doc: BotRoomDoc): BotRoom => ({
   botId: doc.botId,
   platform: doc.platform,
   externalRoomId: doc.externalRoomId,
+  title: doc.title,
   status: doc.status,
   settings: doc.settings,
   joinedAt: doc.joinedAt,

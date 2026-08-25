@@ -19,6 +19,11 @@ interface EncryptedPayload {
   deviceId?: string
 }
 
+const optionalText = (value: string | undefined): string | undefined => {
+  const normalized = value?.trim()
+  return normalized === '' || normalized == null ? undefined : normalized
+}
+
 export class CredentialService {
   constructor (private readonly repo: CredentialRepository) {}
 
@@ -29,7 +34,7 @@ export class CredentialService {
   async createCredential (input: BotCredentialCreateInput): Promise<BotCredential> {
     const payload: EncryptedPayload = {
       token: input.token,
-      deviceId: input.deviceId
+      deviceId: optionalText(input.deviceId)
     }
     const encryptedToken = encryptSecret(JSON.stringify(payload))
     return await this.repo.create({
@@ -37,8 +42,8 @@ export class CredentialService {
       botId: input.botId,
       platform: input.platform,
       encryptedToken,
-      externalAccountId: input.externalAccountId,
-      externalAccountName: input.externalAccountName
+      externalAccountId: optionalText(input.externalAccountId),
+      externalAccountName: optionalText(input.externalAccountName)
     })
   }
 

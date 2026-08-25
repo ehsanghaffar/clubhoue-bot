@@ -33,6 +33,7 @@ export class MongoRoomRepository implements RoomRepository {
       botId: input.botId,
       platform: input.platform,
       externalRoomId: input.externalRoomId,
+      title: input.title,
       settings: resolveRoomSettings(input.settings)
     })
     return toBotRoom(doc)

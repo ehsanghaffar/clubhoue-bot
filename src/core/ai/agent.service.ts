@@ -8,6 +8,7 @@ import type { AiRunner } from '../automation/rules/ai.rule.js'
 import type { AiService } from './ai.service.js'
 import type { MessageCreatedPayload } from '../events/event.types.js'
 import type { UsageRecorder } from '../usage/usage.types.js'
+import { resolveAiConfig } from '../bots/bot.types.js'
 
 export interface AgentServiceDeps {
   ai: AiService
@@ -73,7 +74,14 @@ export class AgentService {
 
       this.deps.ai.markResponded(event.tenantId, context.bot.id, context.room.id, payload.userId)
       await this.deps.usage?.record({ ...usageInput, type: 'ai_response' as const })
-      return response.content
+      // A mention-triggered response must visibly address the person who asked
+      // the question. The original message (including its mention) is passed
+      // to the provider above; only the outgoing chat message is prefixed.
+      const triggerMode = resolveAiConfig(context.bot.aiConfig).triggerMode
+      const author = payload.username ?? payload.displayName
+      return triggerMode === 'mention' && author != null && author.trim() !== ''
+        ? `@${author.trim()} ${response.content}`
+        : response.content
     }
   }
 }

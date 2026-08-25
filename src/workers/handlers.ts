@@ -22,6 +22,7 @@ import {
   type SpeakerInviteJob
 } from './jobs.js'
 import logger from '../utils/logger.js'
+import { resolveAiConfig } from '../core/bots/bot.types.js'
 
 export interface WorkerDeps {
   botManager: BotManager
@@ -86,7 +87,11 @@ export const createHandlers = (deps: WorkerDeps): JobHandlerMap => ({
       return
     }
     const response = await deps.ai.generateResponse(context.bot, data.userId, data.content)
-    await context.sendMessage(response.content)
+    const author = data.userId.trim()
+    const reply = resolveAiConfig(context.bot.aiConfig).triggerMode === 'mention' && author !== ''
+      ? `@${author} ${response.content}`
+      : response.content
+    await context.sendMessage(reply)
     deps.ai.markResponded(data.tenantId, context.bot.id, context.room.id, data.userId)
   },
 

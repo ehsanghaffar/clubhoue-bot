@@ -89,6 +89,19 @@ describe('ClubhouseAdapter', () => {
     )
   })
 
+  it('uses the Clubhouse null sentinel when an optional account id is blank', async () => {
+    agentMock.mockResolvedValue(jsonResponse({ message_id: 'm1' }))
+    const adapter = new ClubhouseAdapter({ token: 'tok-123', externalAccountId: '   ' })
+
+    await adapter.sendMessage('ch_abc', 'Hello there')
+
+    expect(agentMock).toHaveBeenCalledWith(
+      '/send_channel_message',
+      { body: { channel: 'ch_abc', message: 'Hello there' } },
+      expect.objectContaining({ userId: undefined })
+    )
+  })
+
   it('getMessages normalizes raw messages', async () => {
     agentMock.mockResolvedValue(jsonResponse({
       messages: [

@@ -227,4 +227,15 @@ describe('AgentService runner', () => {
     expect(result).toBe('The answer is 42.')
     expect(cooldown.isOnCooldown('tenant-1', 'bot-1', 'room-1', 'u-1', 30)).toBe(true)
   })
+
+  it('keeps the mentioned message intact for AI and addresses the asker in the reply', async () => {
+    const { ai } = makeService('The answer is 42.')
+    const agent = new AgentService({ ai })
+    const runner = agent.createRunner()
+    const adapter = { platform: 'clubhouse' } as CommunityPlatformAdapter
+    const bot = makeBot({ aiConfig: { ...makeBot().aiConfig, triggerMode: 'mention' } })
+    const context = createRuleContext({ bot, room: makeRoom(), adapter, botUserId: 'bot-own-id', externalAccountName: 'helper' })
+    const result = await runner(makeEvent('u-1', '@helper what is 42?'), context)
+    expect(result).toBe('@User The answer is 42.')
+  })
 })

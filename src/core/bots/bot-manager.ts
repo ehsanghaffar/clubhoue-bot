@@ -165,7 +165,9 @@ export class BotManager {
         this.runtimes.delete(botId)
         return
       }
-      if (room.status === 'inactive' || room.status === 'error') {
+      // A configured room is only a saved target. Never join it merely because
+      // the bot runtime starts; membership is an explicit user action.
+      if (room.status !== 'active') {
         continue
       }
       // Startup reconciliation: a Clubhouse room is ephemeral and may have
@@ -178,16 +180,6 @@ export class BotManager {
       if (room.status === 'active') {
         const live = await this.reconcileActiveRoom(tenantId, botId, room, adapter)
         if (!live) {
-          continue
-        }
-      }
-      if (room.status !== 'active' && room.status !== 'joining') {
-        try {
-          await this.deps.roomService.update(tenantId, room.id, { status: 'joining' })
-          await this.deps.roomService.join(room, adapter)
-        } catch (error) {
-          logger.error('Failed to join room', { tenantId, botId, roomId: room.id, externalRoomId: room.externalRoomId, error })
-          await this.deps.roomService.update(tenantId, room.id, { status: 'error' })
           continue
         }
       }
@@ -333,6 +325,26 @@ export class BotManager {
       return
     }
     await runtime.adapter.inviteSpeaker(room.externalRoomId, scope.userId)
+  }
+
+  /** Explicitly joins a configured room and starts its sync/active-ping loop. */
+  async joinRoom (scope: RoomRuntimeScope): Promise<BotRoom> {
+    await this.startBot(scope)
+    const runtime = this.runtimes.get(scope.botId)
+    const generation = this.startup.get(scope.botId)?.generation
+    if (runtime == null || runtime.tenantId !== scope.tenantId || generation == null) {
+      throw new Error('Bot runtime is not active')
+    }
+    const room = await this.deps.rooms.findByIdAndTenantAndBot(scope.roomId, scope.tenantId, scope.botId)
+    if (room == null) throw new Error(`Room not found: ${scope.roomId}`)
+    if (room.status !== 'active') {
+      await this.deps.roomService.update(scope.tenantId, room.id, { status: 'joining' })
+      await this.deps.roomService.join(room, runtime.adapter)
+    }
+    const updated = await this.deps.rooms.findByIdAndTenantAndBot(room.id, scope.tenantId, scope.botId)
+    if (updated == null) throw new Error(`Room not found: ${scope.roomId}`)
+    await this.ensureRoomRuntime(scope.tenantId, scope.botId, updated, runtime.adapter, generation)
+    return (await this.deps.rooms.findByIdAndTenantAndBot(room.id, scope.tenantId, scope.botId)) ?? updated
   }
 
   /** Stops timers when a room becomes inactive, leaving, or error. */

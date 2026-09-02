@@ -10,6 +10,7 @@ import bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
 import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middlewares/error-handler.js'
+import { requestLogger } from './middlewares/request-logger.js'
 import { createV1Router } from './api/routes/v1.routes.js'
 import { buildV1OpenApiSpec } from './api/openapi/v1.openapi.js'
 import { botService, botManager } from './core/bots/index.js'
@@ -72,6 +73,7 @@ export const createApp = (options: AppOptions = {}): Express => {
   app.use(bodyParser.urlencoded({ extended: true }))
   app.use(cors())
   app.use(bodyParser.json())
+  app.use(requestLogger)
 
   app.get('/', (_req: Request, res: Response) => {
     res.send('Hello World!')

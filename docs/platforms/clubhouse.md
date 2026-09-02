@@ -90,7 +90,16 @@ Each method documents its input options (from [`types.ts`](../../src/platforms/c
 | 5xx | `transient` | yes |
 | other | `request` | no |
 
-Network failures (`AbortError`/`TimeoutError`/connection errors) → `timeout`/`network` (retryable). `ClubhouseApiError` exposes `operation`, `status`, `kind`, `retryable`, `authenticationFailure`, `rateLimited`.
+Network failures (`AbortError`/`TimeoutError`/connection errors) → `timeout`/`network` (retryable). `ClubhouseApiError` exposes `operation`, `status`, `kind`, `retryable`, `authenticationFailure`, `rateLimited`. A server-provided `Retry-After` is exposed as `retryAfterMs` and honored by the retry layer.
+
+## Resilience
+
+Resilience behavior lives in [`retry.ts`](../../src/platforms/clubhouse/retry.ts) and is applied by [`http.ts`](../../src/platforms/clubhouse/http.ts) to every `ClubApiService` call.
+
+- **Retry/backoff**: transient failures (429, 408, 5xx, network/timeout) are retried with bounded exponential backoff (`maxAttempts` 3 by default, `baseDelayMs` 500, `factor` 2, `maxDelayMs` 8s). Full jitter is applied by default. A per-service `RetryConfig` can be passed to `ClubApiService`. The whole retry window is kept short so a degraded endpoint can never stall a room loop.
+- **Rate-limit handling**: a 429 response carries `retryAfterMs` parsed from `Retry-After` (integer seconds or HTTP date, via `parseRetryAfterMs`). The retry sleeps at least that long, clamped to `maxRetryAfterMs` (default 30s).
+- **Session/token refresh**: an optional `refreshToken` on the credential enables rotating the access token. On an auth failure (401/403), `POST /refresh_token` is issued once (`ClubApiService.refreshAccessToken`) and the failed operation is retried with the rotated token. `onTokenRefreshed` lets the owner persist the new token. If refresh is unavailable or fails, the original `authenticationFailure` `ClubhouseApiError` is surfaced so the credential-invalidation path runs as before.
+- **Graceful degradation**: response bodies that are empty or malformed JSON degrade to `{}` (`parseJsonResponse`) instead of throwing, and an unrecognized `Retry-After` value is ignored. API shape differences that cannot be mapped surface as typed `ClubhouseApiError`s (never as unhandled exceptions), so the room loop can react via the existing `retryable`/`authenticationFailure` flags.
 
 ## Limitations
 

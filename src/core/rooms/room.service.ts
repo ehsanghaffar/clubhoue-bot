@@ -6,7 +6,7 @@
  */
 import type { BotRoom, BotRoomCreateInput, BotRoomSettings } from './room.types.js'
 import type { RoomRepository, RoomUpdateInput } from './room.repository.js'
-import type { RoomMemberRepository } from './room-member.repository.js'
+import type { RoomMemberRecord, RoomMemberRepository } from './room-member.repository.js'
 import type { MessageDeduplicator } from '../../infrastructure/deduplication/message-dedup.js'
 import type { EventBus } from '../events/event-bus.js'
 import type { EventStore } from '../events/event-store.js'
@@ -46,6 +46,11 @@ export class RoomService {
 
   async listActiveByTenant (tenantId: string): Promise<BotRoom[]> {
     return await this.deps.repo.findByTenantAndStatus(tenantId, 'active')
+  }
+
+  /** Lists the members observed across the given room ids. */
+  async listMembersByRoomIds (roomIds: string[]): Promise<RoomMemberRecord[]> {
+    return await this.deps.members.listByRoomIds(roomIds)
   }
 
   async updateSettings (tenantId: string, id: string, settings: Partial<BotRoomSettings>): Promise<BotRoom | null> {

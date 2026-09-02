@@ -12,6 +12,7 @@
  * types from `src/core/types.ts`.
  */
 import type { Profile } from '../../types/config.js'
+import type { RetryConfig } from './retry.js'
 
 export interface AgentOptions {
   body?: Record<string, unknown>
@@ -46,6 +47,16 @@ export interface ClubApiServiceConfig {
   profile: Profile | null
   agent: AgentFunction | null
   debug?: (...args: unknown[]) => void
+  /** Optional retry/backoff policy for all Clubhouse calls. */
+  retry?: RetryConfig
+  /**
+   * Optional refresh token used to rotate the access token on 401/403. When
+   * set and `onTokenRefreshed` is provided, auth failures trigger one refresh
+   * + retry instead of immediately surfacing the auth error.
+   */
+  refreshToken?: string
+  /** Called with the rotated access token so the owner can persist it. */
+  onTokenRefreshed?: (token: string) => void
 }
 
 export interface JoinChannelOptions {

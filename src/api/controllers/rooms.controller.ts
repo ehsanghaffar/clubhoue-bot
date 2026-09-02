@@ -44,6 +44,8 @@ export interface RoomsController {
   leave: RequestHandler
   sendMessage: RequestHandler
   listMessages: RequestHandler
+  listMembers: RequestHandler
+  listBotMembers: RequestHandler
   acceptInvite: RequestHandler
   analyze: RequestHandler
 }
@@ -225,6 +227,33 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     }
   }
 
+  /** Lists the members observed in a room from durable member tracking. */
+  const listMembers: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const room = req.room
+      if (room == null) {
+        next(createNotFoundError('Room not found'))
+        return
+      }
+      const members = await deps.roomService.listMembersByRoomIds([room.id])
+      res.json({ data: members })
+    } catch (err) { next(err) }
+  }
+
+  /** Lists all members observed across a bot's rooms. */
+  const listBotMembers: RequestHandler = async (req, res, next): Promise<void> => {
+    try {
+      const bot = req.bot
+      if (bot == null) {
+        next(createNotFoundError('Bot not found'))
+        return
+      }
+      const rooms = await deps.roomService.listByBotAndTenant(bot.id, bot.tenantId)
+      const members = await deps.roomService.listMembersByRoomIds(rooms.map((room) => room.id))
+      res.json({ data: members })
+    } catch (err) { next(err) }
+  }
+
   /** Migrated from legacy POST /api/channels/accept_invite + /api/profiles/accept_invite. */
   const acceptInvite: RequestHandler = async (req, res, next): Promise<void> => {
     try {
@@ -262,5 +291,5 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     } catch (err) { next(err) }
   }
 
-  return { create, list, get, update, remove, listAvailable, join, leave, sendMessage, listMessages, acceptInvite, analyze }
+  return { create, list, get, update, remove, listAvailable, join, leave, sendMessage, listMessages, listMembers, listBotMembers, acceptInvite, analyze }
 }

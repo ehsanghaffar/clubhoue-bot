@@ -164,17 +164,23 @@ describe('ClubhouseAdapter', () => {
   })
 
   it('wraps platform failures in AdapterError', async () => {
+    vi.useFakeTimers()
     agentMock.mockRejectedValue(new Error('network down'))
     const adapter = makeAdapter()
-    await expect(adapter.getRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.joinRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.leaveRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.getMessages('ch_abc')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.sendMessage('ch_abc', 'hi')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.getUser('u1')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.searchUsers('sa')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.inviteSpeaker('ch_abc', 'u1')).rejects.toBeInstanceOf(AdapterError)
-    await expect(adapter.acceptSpeakerInvite('ch_abc')).rejects.toBeInstanceOf(AdapterError)
+    const checks = [
+      expect(adapter.getRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.joinRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.leaveRoom('ch_abc')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.getMessages('ch_abc')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.sendMessage('ch_abc', 'hi')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.getUser('u1')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.searchUsers('sa')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.inviteSpeaker('ch_abc', 'u1')).rejects.toBeInstanceOf(AdapterError),
+      expect(adapter.acceptSpeakerInvite('ch_abc')).rejects.toBeInstanceOf(AdapterError)
+    ]
+    await vi.runAllTimersAsync()
+    await Promise.all(checks)
+    vi.useRealTimers()
   })
 })
 

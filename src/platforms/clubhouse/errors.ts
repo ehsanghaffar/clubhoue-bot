@@ -26,12 +26,15 @@ export class ClubhouseApiError extends Error {
   readonly authenticationFailure: boolean
   readonly rateLimited: boolean
   readonly kind: ClubhouseFailureKind
+  /** Server-provided `Retry-After` hint (ms) when the API sent one. */
+  readonly retryAfterMs?: number
 
   constructor (params: {
     operation: string
     status?: number
     kind: ClubhouseFailureKind
     message?: string
+    retryAfterMs?: number
   }) {
     const retryable = params.kind === 'rate_limited' ||
       params.kind === 'transient' ||
@@ -49,6 +52,7 @@ export class ClubhouseApiError extends Error {
     this.retryable = retryable
     this.authenticationFailure = authenticationFailure
     this.rateLimited = rateLimited
+    this.retryAfterMs = params.retryAfterMs
   }
 }
 

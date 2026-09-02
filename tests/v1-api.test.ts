@@ -45,6 +45,7 @@ describe('v1 API', () => {
   let server: { port: number, close: () => Promise<void> }
   let botRepo: InMemoryBotRepository
   let roomRepo: InMemoryRoomRepository
+  let memberRepo: InMemoryRoomMemberRepository
   let usageRepo: InMemoryUsageRepository
 
   beforeEach(async () => {
@@ -55,7 +56,7 @@ describe('v1 API', () => {
 
     botRepo = new InMemoryBotRepository()
     roomRepo = new InMemoryRoomRepository()
-    const memberRepo = new InMemoryRoomMemberRepository()
+    memberRepo = new InMemoryRoomMemberRepository()
     usageRepo = new InMemoryUsageRepository()
     const credentialRepo = new InMemoryCredentialRepository()
     const bus = new EventBus()
@@ -278,6 +279,48 @@ describe('v1 API', () => {
         headers: headers(tenantAKey)
       })
       expect(join.status).toBe(400)
+    })
+
+    it('lists members observed in a room and across a bot', async () => {
+      const botId = await createBot()
+      const create = await fetch(api(`/v1/bots/${botId}/rooms`), {
+        method: 'POST',
+        headers: headers(tenantAKey),
+        body: JSON.stringify({ externalRoomId: 'ch_room_1' })
+      })
+      const createBody = (await create.json()) as { data: { id: string } }
+      const roomId = createBody.data.id
+
+      await memberRepo.ensureSeen(roomId, 'user_1', 'Alice')
+      await memberRepo.ensureSeen(roomId, 'user_2', 'Bob')
+      // Same user twice — dedup keeps a single record.
+      await memberRepo.ensureSeen(roomId, 'user_2', 'Bob')
+
+      const roomRes = await fetch(api(`/v1/bots/${botId}/rooms/ch_room_1/members`), { headers: headers(tenantAKey) })
+      expect(roomRes.status).toBe(200)
+      const roomBody = (await roomRes.json()) as { data: Array<{ roomId: string, userId: string, displayName?: string }> }
+      expect(roomBody.data).toHaveLength(2)
+      expect(roomBody.data.map((member) => member.userId).sort()).toEqual(['user_1', 'user_2'])
+      expect(roomBody.data[0].roomId).toBe(roomId)
+
+      const botRes = await fetch(api(`/v1/bots/${botId}/members`), { headers: headers(tenantAKey) })
+      expect(botRes.status).toBe(200)
+      const botBody = (await botRes.json()) as { data: unknown[] }
+      expect(botBody.data).toHaveLength(2)
+    })
+
+    it('does not leak room members to another tenant', async () => {
+      const botId = await createBot()
+      const create = await fetch(api(`/v1/bots/${botId}/rooms`), {
+        method: 'POST',
+        headers: headers(tenantAKey),
+        body: JSON.stringify({ externalRoomId: 'ch_room_1' })
+      })
+      const createBody = (await create.json()) as { data: { id: string } }
+      await memberRepo.ensureSeen(createBody.data.id, 'user_1', 'Alice')
+
+      const botRes = await fetch(api(`/v1/bots/${botId}/members`), { headers: headers(tenantBKey) })
+      expect(botRes.status).toBe(404)
     })
   })
 

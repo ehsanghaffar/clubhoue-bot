@@ -10,11 +10,20 @@ export interface RoomMemberSeenResult {
   isNew: boolean
 }
 
+export interface RoomMemberRecord {
+  roomId: string
+  userId: string
+  displayName?: string
+  firstSeenAt: Date
+}
+
 export interface RoomMemberRepository {
   /** Marks a user as seen in a room; reports whether they were previously unknown. */
   ensureSeen: (roomId: string, userId: string, displayName?: string) => Promise<RoomMemberSeenResult>
   /** Counts distinct users seen across the given room ids. */
   countDistinctUsers: (roomIds: string[]) => Promise<number>
+  /** Lists the member records observed across the given room ids. */
+  listByRoomIds: (roomIds: string[]) => Promise<RoomMemberRecord[]>
 }
 
 export class MongoRoomMemberRepository implements RoomMemberRepository {
@@ -41,6 +50,21 @@ export class MongoRoomMemberRepository implements RoomMemberRepository {
     }
     const userIds = await RoomMemberModel.distinct('userId', { roomId: { $in: roomIds } })
     return userIds.length
+  }
+
+  async listByRoomIds (roomIds: string[]): Promise<RoomMemberRecord[]> {
+    if (roomIds.length === 0) {
+      return []
+    }
+    const docs = await RoomMemberModel.find({ roomId: { $in: roomIds } })
+      .sort({ firstSeenAt: 1 })
+      .lean()
+    return docs.map((doc) => ({
+      roomId: doc.roomId,
+      userId: doc.userId,
+      displayName: doc.displayName,
+      firstSeenAt: doc.firstSeenAt
+    }))
   }
 }
 

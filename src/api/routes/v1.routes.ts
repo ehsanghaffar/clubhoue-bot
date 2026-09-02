@@ -83,6 +83,7 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
   router.get('/bots/:botId/available-rooms', requireBot(botLoader), rooms.listAvailable)
   router.get('/bots/:botId/rooms', requireBot(botLoader), rooms.list)
   router.get('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), rooms.get)
+  router.get('/bots/:botId/rooms/:externalRoomId/members', requireBot(botLoader), requireRoom(roomLoader), rooms.listMembers)
   router.patch('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), validateBody(updateRoomSchema), rooms.update)
   router.delete('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), rooms.remove)
   router.post('/bots/:botId/rooms/:externalRoomId/join', requireBot(botLoader), requireRoom(roomLoader), rooms.join)
@@ -99,6 +100,7 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
 
   router.get('/bots/:botId/usage', requireBot(botLoader), usage.summary)
   router.get('/bots/:botId/events', requireBot(botLoader), usage.events)
+  router.get('/bots/:botId/members', requireBot(botLoader), rooms.listBotMembers)
 
   return router
 }

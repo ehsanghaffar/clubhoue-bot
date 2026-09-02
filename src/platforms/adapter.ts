@@ -33,6 +33,8 @@ export interface AdapterCredentialData {
   deviceId?: string
   externalAccountId?: string
   externalAccountName?: string
+  /** Optional refresh token; enables one-shot token rotation on 401/403. */
+  refreshToken?: string
 }
 
 export type AdapterFactory = (

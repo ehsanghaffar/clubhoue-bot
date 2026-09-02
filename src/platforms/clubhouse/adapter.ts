@@ -35,6 +35,7 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
   constructor (credential: AdapterCredentialData) {
     const profile: Profile = {
       token: credential.token,
+      refreshToken: credential.refreshToken,
       deviceId: optionalText(credential.deviceId),
       userId: optionalText(credential.externalAccountId),
       user: optionalText(credential.externalAccountName) != null

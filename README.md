@@ -1,8 +1,6 @@
-# clubhouse-full-api
+# Clubhouse Control
 
-A **Clubhouse bot platform** — a single-process Node/TypeScript service that operates Clubhouse user accounts programmatically as bots. It exposes a tenant-scoped REST API (`/v1`) for managing bots, their Clubhouse credentials, and the rooms they join, and it runs those bots at runtime: joining rooms, syncing messages, responding via AI, automating welcome/speaker actions, and recording usage telemetry.
-
-> This documentation was generated from the current source code. The repository had no prior documentation; everything under `docs/` was reverse-engineered from the implementation (see the [Documentation](#documentation) section).
+A single-process Node/TypeScript service that operates Clubhouse user accounts programmatically as bots. It exposes a tenant-scoped REST API (`/v1`) for managing bots, their Clubhouse credentials, and the rooms they join, and it runs those bots at runtime: joining rooms, syncing messages, responding via AI, automating welcome/speaker actions, and recording usage telemetry.
 
 ---
 

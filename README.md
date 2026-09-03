@@ -1,18 +1,5 @@
 # clubhouse-full-api
 
-![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-15641-orange)
-
-```
-Language                 Files       Lines     Blank     Comment        Code
-----------------------------------------------------------------------------
-TypeScript                 122        9757      1050        1578        7129
-YAML                         5        5518      1187          42        4289
-TypeScript (Test)           28        5144       602         319        4223
-----------------------------------------------------------------------------
-Total                      155       20419      2839        1939       15641
-----------------------------------------------------------------------------
-```
-
 A **Clubhouse bot platform** — a single-process Node/TypeScript service that operates Clubhouse user accounts programmatically as bots. It exposes a tenant-scoped REST API (`/v1`) for managing bots, their Clubhouse credentials, and the rooms they join, and it runs those bots at runtime: joining rooms, syncing messages, responding via AI, automating welcome/speaker actions, and recording usage telemetry.
 
 > This documentation was generated from the current source code. The repository had no prior documentation; everything under `docs/` was reverse-engineered from the implementation (see the [Documentation](#documentation) section).

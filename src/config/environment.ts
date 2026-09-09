@@ -7,7 +7,7 @@
 export const REQUIRED_ENV_VARS = [
   'API_KEY',
   'OPENAI_API_KEY',
-  'MONGODB_URL',
+  'MONGODB_URL'
 ]
 
 /**

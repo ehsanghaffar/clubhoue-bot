@@ -8,9 +8,6 @@ export const REQUIRED_ENV_VARS = [
   'API_KEY',
   'OPENAI_API_KEY',
   'MONGODB_URL',
-  'AGORA_KEY',
-  'PUBNUB_PUB_KEY',
-  'PUBNUB_SUB_KEY'
 ]
 
 /**

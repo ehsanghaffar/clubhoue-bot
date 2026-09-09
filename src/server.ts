@@ -7,6 +7,7 @@
 import dotenv from 'dotenv'
 import http from 'http'
 import logger from './utils/logger.js'
+import { reportError } from './infrastructure/error-tracking/error-tracker.js'
 import db from './config/db/db.js'
 import { getMissingEnvVars } from './config/environment.js'
 import { configureEventPipeline } from './core/startup.js'
@@ -68,15 +69,18 @@ const bootstrap = async (): Promise<void> => {
     })
 
     process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+      reportError({ error: reason, context: { reason: 'unhandledRejection' } })
       logger.error('Unhandled Rejection at:', { promise, reason })
     })
 
     process.on('uncaughtException', (err: Error) => {
+      reportError({ error: err, context: { reason: 'uncaughtException' } })
       logger.error('Uncaught Exception thrown:', { error: err })
       process.exit(1)
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
+    reportError({ error: err, context: { reason: 'startup', message } })
     logger.error('Failed to start application:', { error: message })
     process.exit(1)
   }

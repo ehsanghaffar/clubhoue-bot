@@ -24,7 +24,8 @@ import type {
   SendMessageResponse,
   UserResponse
 } from './types.js'
-import { wrapClubhouseCall } from './http.js'
+import { wrapClubhouseCall, parseJsonResponse, type ClubhouseCallOptions } from './http.js'
+import type { RetryConfig } from './retry.js'
 import logger from '../../utils/logger.js'
 
 /**
@@ -35,10 +36,20 @@ import logger from '../../utils/logger.js'
 export class ClubApiService {
   private readonly profile: Profile
   private readonly agent: AgentFunction
+  private readonly retry?: RetryConfig
+  private readonly refreshToken?: string
+  private readonly onTokenRefreshed?: (token: string) => void
 
-  constructor (profile: Profile, agent: AgentFunction) {
+  constructor (
+    profile: Profile,
+    agent: AgentFunction,
+    config?: { retry?: RetryConfig, refreshToken?: string, onTokenRefreshed?: (token: string) => void }
+  ) {
     this.profile = profile
     this.agent = agent
+    this.retry = config?.retry
+    this.refreshToken = config?.refreshToken ?? profile.refreshToken
+    this.onTokenRefreshed = config?.onTokenRefreshed
   }
 
   private ensureConfigured (): void {
@@ -52,8 +63,46 @@ export class ClubApiService {
     return token != null ? { ...this.profile, token } : this.profile
   }
 
+  /**
+   * Rotates the access token via `POST /refresh_token`. Returns the new token
+   * (updating the bound profile for subsequent calls) or `null` when no
+   * refresh token is configured. The Clubhouse private API has returned the
+   * token under several field names across app versions, so a few known keys
+   * are accepted to degrade gracefully.
+   */
+  async refreshAccessToken (): Promise<string | null> {
+    if (this.refreshToken == null || this.refreshToken === '') {
+      return null
+    }
+    logger.debug('Refreshing Clubhouse access token')
+    const body = await wrapClubhouseCall(
+      'refreshToken',
+      async () => await this.agent(
+        '/refresh_token',
+        { body: { refresh_token: this.refreshToken } },
+        this.profile
+      ),
+      async (response) => await parseJsonResponse<Record<string, unknown>>(response),
+      { retry: this.retry }
+    )
+    const candidate = body.access_token ?? body.auth_token ?? body.token
+    if (typeof candidate !== 'string' || candidate === '') {
+      logger.error('Clubhouse refresh_token returned no access token')
+      return null
+    }
+    this.profile.token = candidate
+    this.onTokenRefreshed?.(candidate)
+    return candidate
+  }
+
   private async requestJson<T> (operation: string, fn: () => Promise<Response>): Promise<T> {
-    return await wrapClubhouseCall(operation, fn, async (response) => await response.json() as T)
+    const callOptions: ClubhouseCallOptions = {
+      retry: this.retry,
+      onAuthFailure: this.refreshToken != null
+        ? async () => (await this.refreshAccessToken()) != null
+        : undefined
+    }
+    return await wrapClubhouseCall(operation, fn, async (response) => await parseJsonResponse<T>(response), callOptions)
   }
 
   async getChannels (): Promise<ChannelListResponse> {

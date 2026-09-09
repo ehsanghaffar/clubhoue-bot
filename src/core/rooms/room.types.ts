@@ -44,6 +44,8 @@ export interface BotRoom {
   botId: string
   platform: Platform
   externalRoomId: string
+  /** Last known Clubhouse room title, captured when a room is discovered. */
+  title?: string
   status: BotRoomStatus
   settings: BotRoomSettings
   joinedAt?: Date
@@ -57,6 +59,7 @@ export interface BotRoomCreateInput {
   botId: string
   platform: Platform
   externalRoomId: string
+  title?: string
   settings?: Partial<BotRoomSettings>
 }
 

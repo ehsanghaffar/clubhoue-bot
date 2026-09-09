@@ -5,6 +5,7 @@
  * @author Ehsan Ghaffar <ghafari.5000@gmail.com>
  */
 import type { Bot } from '../bots/bot.types.js'
+import type { Message } from '../types.js'
 import type {
   AiCooldownStore,
   AiDecision,
@@ -142,5 +143,27 @@ export class AiService {
       content: truncated ? content.slice(0, ai.maxResponseLength) : content,
       truncated
     }
+  }
+
+  /** Summarizes a bounded transcript or answers a question grounded in it. */
+  async analyzeRoom (bot: Bot, messages: Message[], question?: string): Promise<AiResponse> {
+    const ai = resolveAiConfig(bot.aiConfig)
+    if (!ai.enabled) throw new Error('AI is disabled for this bot')
+    const transcript = messages.slice(-250).map((message) => {
+      const author = message.displayName ?? message.username ?? message.userId
+      return `${author}: ${message.content}`
+    }).join('\n').slice(-30000)
+    const raw = await this.deps.provider.complete({
+      model: ai.model,
+      systemPrompt: 'You analyze a Clubhouse room transcript. Be concise, factual, and clearly distinguish unknown information. Reply in the language of the question or transcript.',
+      userPrompt: question != null
+        ? `Transcript:\n${transcript}\n\nQuestion: ${question}`
+        : `Transcript:\n${transcript}\n\nProvide a concise summary, key points, and unresolved questions.`,
+      maxOutputTokens: ai.maxOutputTokens,
+      temperature: ai.temperature
+    })
+    const content = raw.trim()
+    const truncated = content.length > ai.maxResponseLength
+    return { content: truncated ? content.slice(0, ai.maxResponseLength) : content, truncated }
   }
 }

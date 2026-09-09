@@ -23,5 +23,14 @@ const roomSettingsSchema = Joi.object({
 
 export const createRoomSchema = Joi.object({
   externalRoomId: Joi.string().min(1).max(200).required(),
+  title: Joi.string().trim().min(1).max(500).optional(),
   settings: roomSettingsSchema.optional()
+})
+
+export const updateRoomSchema = Joi.object({
+  settings: roomSettingsSchema.required()
+}).min(1)
+
+export const roomAnalysisSchema = Joi.object({
+  question: Joi.string().trim().min(1).max(4000).optional()
 })

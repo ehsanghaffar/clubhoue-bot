@@ -14,9 +14,14 @@ import { AdapterError } from '../adapter.js'
 import { ClubhouseApiError } from './errors.js'
 import agent from './agent.js'
 import { ClubApiService } from './api.service.js'
-import { mapMessages, mapRoom, mapUser } from './mappers.js'
+import { mapAvailableRooms, mapMessages, mapRoom, mapUser } from './mappers.js'
 import type { ClubhouseMessage } from './types.js'
 import logger from '../../utils/logger.js'
+
+const optionalText = (value: string | undefined): string | undefined => {
+  const normalized = value?.trim()
+  return normalized === '' || normalized == null ? undefined : normalized
+}
 
 /**
  * Clubhouse implementation of the platform-agnostic adapter contract. Each
@@ -30,10 +35,11 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
   constructor (credential: AdapterCredentialData) {
     const profile: Profile = {
       token: credential.token,
-      deviceId: credential.deviceId,
-      userId: credential.externalAccountId,
-      user: credential.externalAccountName != null
-        ? { name: credential.externalAccountName }
+      refreshToken: credential.refreshToken,
+      deviceId: optionalText(credential.deviceId),
+      userId: optionalText(credential.externalAccountId),
+      user: optionalText(credential.externalAccountName) != null
+        ? { name: optionalText(credential.externalAccountName)! }
         : undefined
     }
     const agentFn = async (url: string, options?: Parameters<typeof agent>[1], customs?: Parameters<typeof agent>[2]): Promise<Response> =>
@@ -47,6 +53,14 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
       return mapRoom(raw)
     } catch (error) {
       throw this.toAdapterError('getRoom', error)
+    }
+  }
+
+  async listAvailableRooms (): Promise<Room[]> {
+    try {
+      return mapAvailableRooms(await this.api.getChannels())
+    } catch (error) {
+      throw this.toAdapterError('listAvailableRooms', error)
     }
   }
 
@@ -135,7 +149,7 @@ export class ClubhouseAdapter implements CommunityPlatformAdapter {
         kind: cause.kind,
         retryable: cause.retryable
       })
-      return new AdapterError(`Clubhouse ${op} failed`, cause)
+      return new AdapterError(`Clubhouse ${op} failed: ${cause.message}`, cause)
     }
     const message = cause instanceof Error ? cause.message : String(cause)
     logger.error(`Clubhouse adapter ${op} failed`, { error: message })

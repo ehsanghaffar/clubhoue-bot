@@ -7,6 +7,8 @@
 import { type Request, type Response, type NextFunction } from 'express'
 import { AppError } from '../utils/errors.js'
 import logger from '../utils/logger.js'
+import { buildRequestContext } from '../utils/request-context.js'
+import { reportRequestError } from '../infrastructure/error-tracking/error-tracker.js'
 
 export const errorHandler = (
   err: Error & { code?: number, name?: string },
@@ -67,7 +69,7 @@ export const errorHandler = (
       : err.message
 
   if (statusCode >= 500) {
-    logger.error('Unhandled error:', { error: err })
+    reportRequestError(buildRequestContext(req), err, { statusCode })
   }
 
   res.status(statusCode).json({

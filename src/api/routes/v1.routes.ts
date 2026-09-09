@@ -15,6 +15,7 @@ import type { RoomService } from '../../core/rooms/room.service.js'
 import type { UsageService } from '../../core/usage/usage.service.js'
 import type { AnalyticsService } from '../../core/usage/analytics.service.js'
 import type { TenantService } from '../../core/tenants/tenant.service.js'
+import type { AiService } from '../../core/ai/ai.service.js'
 import { authentication } from '../middleware/authentication.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireBot, requireRoom, requireCredential } from '../middleware/authorization.js'
@@ -26,7 +27,7 @@ import { createUsageController } from '../controllers/usage.controller.js'
 import { createUsersController } from '../controllers/users.controller.js'
 import { createBotSchema, updateBotSchema } from '../validation/bots.schema.js'
 import { createCredentialSchema } from '../validation/credentials.schema.js'
-import { createRoomSchema } from '../validation/rooms.schema.js'
+import { createRoomSchema, roomAnalysisSchema, updateRoomSchema } from '../validation/rooms.schema.js'
 import { sendMessageSchema } from '../validation/messages.schema.js'
 import { searchUsersSchema } from '../validation/users.schema.js'
 
@@ -37,6 +38,7 @@ export interface V1RouterDeps {
   roomService: RoomService
   usageService: UsageService
   analyticsService: AnalyticsService
+  aiService: AiService
   tenantService?: TenantService
 }
 
@@ -45,7 +47,7 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
 
   const bots = createBotsController({ botService: deps.botService, botManager: deps.botManager })
   const credentials = createCredentialsController({ credentialService: deps.credentialService })
-  const rooms = createRoomsController({ roomService: deps.roomService, botService: deps.botService, botManager: deps.botManager })
+  const rooms = createRoomsController({ roomService: deps.roomService, botService: deps.botService, botManager: deps.botManager, aiService: deps.aiService })
   const usage = createUsageController({ usageService: deps.usageService, analyticsService: deps.analyticsService })
   const users = createUsersController({ botService: deps.botService })
 
@@ -78,13 +80,18 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
   router.delete('/bots/:botId/credentials/:credentialId', requireBot(botLoader), requireCredential(credentialLoader), credentials.remove)
 
   router.post('/bots/:botId/rooms', requireBot(botLoader), validateBody(createRoomSchema), rooms.create)
+  router.get('/bots/:botId/available-rooms', requireBot(botLoader), rooms.listAvailable)
   router.get('/bots/:botId/rooms', requireBot(botLoader), rooms.list)
   router.get('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), rooms.get)
+  router.get('/bots/:botId/rooms/:externalRoomId/members', requireBot(botLoader), requireRoom(roomLoader), rooms.listMembers)
+  router.patch('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), validateBody(updateRoomSchema), rooms.update)
+  router.delete('/bots/:botId/rooms/:externalRoomId', requireBot(botLoader), requireRoom(roomLoader), rooms.remove)
   router.post('/bots/:botId/rooms/:externalRoomId/join', requireBot(botLoader), requireRoom(roomLoader), rooms.join)
   router.post('/bots/:botId/rooms/:externalRoomId/leave', requireBot(botLoader), requireRoom(roomLoader), rooms.leave)
 
   router.post('/bots/:botId/rooms/:externalRoomId/messages', requireBot(botLoader), requireRoom(roomLoader), validateBody(sendMessageSchema), rooms.sendMessage)
   router.get('/bots/:botId/rooms/:externalRoomId/messages', requireBot(botLoader), requireRoom(roomLoader), rooms.listMessages)
+  router.post('/bots/:botId/rooms/:externalRoomId/ai', requireBot(botLoader), requireRoom(roomLoader), validateBody(roomAnalysisSchema), rooms.analyze)
   router.post('/bots/:botId/rooms/:externalRoomId/accept-invite', requireBot(botLoader), requireRoom(roomLoader), rooms.acceptInvite)
 
   router.post('/bots/:botId/users/search', requireBot(botLoader), validateBody(searchUsersSchema), users.search)
@@ -93,6 +100,7 @@ export const createV1Router = (deps: V1RouterDeps): Router => {
 
   router.get('/bots/:botId/usage', requireBot(botLoader), usage.summary)
   router.get('/bots/:botId/events', requireBot(botLoader), usage.events)
+  router.get('/bots/:botId/members', requireBot(botLoader), rooms.listBotMembers)
 
   return router
 }

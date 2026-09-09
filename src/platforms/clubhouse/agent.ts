@@ -34,8 +34,10 @@ const agent: AgentFunction = async (
   headers['CH-Locale'] = customOpts.locale ?? 'en_US'
   headers['CH-AppVersion'] = customOpts.appVersion ?? '23.02.07'
   headers['CH-AppBuild'] = customOpts.appBuild ?? '2029'
-  headers['CH-DeviceId'] = customOpts.deviceId ?? uuidv4().toUpperCase()
-  headers['CH-UserID'] = customOpts.userId ?? '(null)'
+  headers['CH-DeviceId'] = customOpts.deviceId?.trim() || uuidv4().toUpperCase()
+  // Empty optional account ids are common in the credential form. Avoid
+  // emitting an invalid empty header; retain the platform's `(null)` sentinel.
+  headers['CH-UserID'] = customOpts.userId?.trim() || '(null)'
 
   if (customOpts.token) {
     headers.Authorization = 'Token ' + customOpts.token

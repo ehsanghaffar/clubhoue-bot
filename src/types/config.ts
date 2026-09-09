@@ -45,6 +45,8 @@ export interface UserProfile {
 
 export interface Profile extends Application {
   token?: string
+  /** Optional refresh token used to rotate `token` on 401/403 auth failures. */
+  refreshToken?: string
   userId?: string
   deviceId?: string
   fetchOptions?: Record<string, unknown>

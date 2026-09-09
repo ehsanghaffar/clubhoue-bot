@@ -15,7 +15,7 @@ import type { BotCreateInput } from '../../src/core/bots/bot.types.js'
 import type { BotRepository, BotUpdateInput } from '../../src/core/bots/bot.repository.js'
 import type { BotRoom, BotRoomCreateInput } from '../../src/core/rooms/room.types.js'
 import type { RoomRepository, RoomUpdateInput } from '../../src/core/rooms/room.repository.js'
-import type { RoomMemberRepository, RoomMemberSeenResult } from '../../src/core/rooms/room-member.repository.js'
+import type { RoomMemberRecord, RoomMemberRepository, RoomMemberSeenResult } from '../../src/core/rooms/room-member.repository.js'
 import type { BotCredential, BotCredentialCreateInput } from '../../src/core/credentials/credential.types.js'
 import type { CredentialRepository } from '../../src/core/credentials/credential.repository.js'
 import type { UsageEvent, UsageEventCreateInput, UsageSummary, UsageType } from '../../src/core/usage/usage.types.js'
@@ -169,6 +169,18 @@ export class InMemoryRoomMemberRepository implements RoomMemberRepository {
       }
     }
     return distinct.size
+  }
+
+  async listByRoomIds (roomIds: string[]): Promise<RoomMemberRecord[]> {
+    const roomSet = new Set(roomIds)
+    const records: RoomMemberRecord[] = []
+    for (const [roomId, users] of this.byRoom) {
+      if (!roomSet.has(roomId)) continue
+      for (const userId of users) {
+        records.push({ roomId, userId, firstSeenAt: new Date() })
+      }
+    }
+    return records
   }
 }
 

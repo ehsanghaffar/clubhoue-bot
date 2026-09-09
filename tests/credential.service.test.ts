@@ -110,6 +110,23 @@ describe('CredentialService', () => {
     expect(decrypted.externalAccountName).toBe('Alice')
   })
 
+  it('normalizes blank optional identity and device fields before persistence', async () => {
+    const service = makeService()
+    const credential = await service.createCredential({
+      tenantId: 'tenant-1',
+      botId: 'bot-1',
+      platform: 'clubhouse',
+      token: 'runtime-token',
+      deviceId: '  ',
+      externalAccountId: '  ',
+      externalAccountName: '  '
+    })
+
+    expect(credential.externalAccountId).toBeUndefined()
+    expect(credential.externalAccountName).toBeUndefined()
+    expect((await service.decryptForRuntime(credential)).deviceId).toBeUndefined()
+  })
+
   it('revokes a credential', async () => {
     const service = makeService()
     const credential = await service.createCredential({

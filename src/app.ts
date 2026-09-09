@@ -10,12 +10,14 @@ import bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
 import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middlewares/error-handler.js'
+import { requestLogger } from './middlewares/request-logger.js'
 import { createV1Router } from './api/routes/v1.routes.js'
 import { buildV1OpenApiSpec } from './api/openapi/v1.openapi.js'
 import { botService, botManager } from './core/bots/index.js'
 import { credentialService } from './core/credentials/credential.service.js'
 import { roomService } from './core/rooms/index.js'
 import { usageService, analyticsService } from './core/usage/index.js'
+import { aiService } from './core/ai/index.js'
 import type { BotService } from './core/bots/bot.service.js'
 import type { BotManager } from './core/bots/bot-manager.js'
 import type { CredentialService } from './core/credentials/credential.service.js'
@@ -23,6 +25,7 @@ import type { RoomService } from './core/rooms/room.service.js'
 import type { UsageService } from './core/usage/usage.service.js'
 import type { AnalyticsService } from './core/usage/analytics.service.js'
 import type { TenantService } from './core/tenants/tenant.service.js'
+import type { AiService } from './core/ai/ai.service.js'
 
 export interface AppOptions {
   botService?: BotService
@@ -31,6 +34,7 @@ export interface AppOptions {
   roomService?: RoomService
   usageService?: UsageService
   analyticsService?: AnalyticsService
+  aiService?: AiService
   tenantService?: TenantService
 }
 
@@ -47,6 +51,7 @@ export const createApp = (options: AppOptions = {}): Express => {
   const roomSvc = options.roomService ?? roomService
   const usageSvc = options.usageService ?? usageService
   const analyticsSvc = options.analyticsService ?? analyticsService
+  const aiSvc = options.aiService ?? aiService
   const tenantSvc = options.tenantService
 
   const port = parseInt(process.env.PORT ?? '4000', 10)
@@ -68,6 +73,7 @@ export const createApp = (options: AppOptions = {}): Express => {
   app.use(bodyParser.urlencoded({ extended: true }))
   app.use(cors())
   app.use(bodyParser.json())
+  app.use(requestLogger)
 
   app.get('/', (_req: Request, res: Response) => {
     res.send('Hello World!')
@@ -92,6 +98,7 @@ export const createApp = (options: AppOptions = {}): Express => {
     roomService: roomSvc,
     usageService: usageSvc,
     analyticsService: analyticsSvc,
+    aiService: aiSvc,
     tenantService: tenantSvc
   }))
 

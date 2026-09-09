@@ -16,6 +16,7 @@ import { RoomService } from '../src/core/rooms/room.service.js'
 import { UsageService } from '../src/core/usage/usage.service.js'
 import { AnalyticsService } from '../src/core/usage/analytics.service.js'
 import { EventBus } from '../src/core/events/event-bus.js'
+import { InMemoryEventStore } from '../src/core/events/event-store.memory.js'
 import { InMemoryMessageDeduplicator } from '../src/infrastructure/deduplication/message-dedup.js'
 import { registerAdapterFactory } from '../src/platforms/adapter.js'
 import type { CommunityPlatformAdapter } from '../src/platforms/adapter.js'
@@ -122,7 +123,8 @@ describe('v1 legacy migration', () => {
       repo: roomRepo,
       members: memberRepo,
       deduplicator: new InMemoryMessageDeduplicator(),
-      bus
+      bus,
+      eventStore: new InMemoryEventStore()
     })
     botManager = new BotManager({ bots: botRepo, rooms: roomRepo, roomService, botService, credentials: credentialService })
     const usageService = new UsageService({ repo: usageRepo })
@@ -183,11 +185,17 @@ describe('v1 legacy migration', () => {
     return body.data.id
   }
 
+  const joinRoom = async (botId: string, externalRoomId: string, key = tenantAKey): Promise<void> => {
+    const res = await fetch(api(`/v1/bots/${botId}/rooms/${externalRoomId}/join`), { method: 'POST', headers: headers(key) })
+    expect(res.status).toBe(200)
+  }
+
   describe('messages (legacy room-msgs / send-room-msg)', () => {
     it('sends a message to a room through the bot adapter', async () => {
       const botId = await createBot()
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
+      await joinRoom(botId, 'ch_1')
 
       const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         method: 'POST',
@@ -205,6 +213,7 @@ describe('v1 legacy migration', () => {
       const botId = await createBot()
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
+      await joinRoom(botId, 'ch_1')
 
       const res = await fetch(api(`/v1/bots/${botId}/rooms/ch_1/messages`), {
         method: 'POST',
@@ -218,6 +227,7 @@ describe('v1 legacy migration', () => {
       const botId = await createBot()
       await addCredential(botId, 'uA')
       const roomId = await createRoom(botId, 'ch_1')
+      await joinRoom(botId, 'ch_1')
       // Trigger lazy adapter creation so the fake can be seeded before GET.
       await fetch(api(`/v1/bots/${botId}/me`), { headers: headers(tenantAKey) })
       adapters.get('uA')!.messages = [{

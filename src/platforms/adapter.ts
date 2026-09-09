@@ -15,6 +15,7 @@ export interface CommunityPlatformAdapter {
   readonly platform: Platform
 
   getRoom: (roomId: string) => Promise<Room>
+  listAvailableRooms: () => Promise<Room[]>
   joinRoom: (roomId: string) => Promise<void>
   leaveRoom: (roomId: string) => Promise<void>
   getMessages: (roomId: string) => Promise<Message[]>
@@ -32,6 +33,8 @@ export interface AdapterCredentialData {
   deviceId?: string
   externalAccountId?: string
   externalAccountName?: string
+  /** Optional refresh token; enables one-shot token rotation on 401/403. */
+  refreshToken?: string
 }
 
 export type AdapterFactory = (

@@ -103,7 +103,7 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     try {
       const bot = req.bot
       const room = req.room
-      if (bot == null || room == null) return next(createNotFoundError('Room not found'))
+      if (bot == null || room == null) { next(createNotFoundError('Room not found')); return }
       const body = req.body as RoomBody
       const updated = await deps.roomService.updateSettings(bot.tenantId, room.id, body.settings ?? {})
       res.json({ data: updated })
@@ -114,7 +114,7 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     try {
       const bot = req.bot
       const room = req.room
-      if (bot == null || room == null) return next(createNotFoundError('Room not found'))
+      if (bot == null || room == null) { next(createNotFoundError('Room not found')); return }
       if (room.status === 'active' || room.status === 'joining') {
         const adapter = await deps.botService.createAdapter(bot)
         await deps.roomService.leave(room, adapter)
@@ -128,12 +128,12 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
   const listAvailable: RequestHandler = async (req, res, next): Promise<void> => {
     try {
       const bot = req.bot
-      if (bot == null) return next(createNotFoundError('Bot not found'))
+      if (bot == null) { next(createNotFoundError('Bot not found')); return }
       const adapter = await deps.botService.createAdapter(bot)
       res.json({ data: await adapter.listAvailableRooms() })
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
-      if (message.includes('No active credential')) return next(createBadRequestError('Bot has no active credential'))
+      if (message.includes('No active credential')) { next(createBadRequestError('Bot has no active credential')); return }
       next(err)
     }
   }
@@ -189,7 +189,7 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
         next(createNotFoundError('Room not found'))
         return
       }
-      if (room.status !== 'active') return next(createBadRequestError('Join the room before sending messages'))
+      if (room.status !== 'active') { next(createBadRequestError('Join the room before sending messages')); return }
       const body = req.body as SendMessageBody
       const adapter = await deps.botService.createAdapter(bot)
       await adapter.sendMessage(room.externalRoomId, body.message ?? '')
@@ -213,7 +213,7 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
         next(createNotFoundError('Room not found'))
         return
       }
-      if (room.status !== 'active') return next(createBadRequestError('Join the room before reading messages'))
+      if (room.status !== 'active') { next(createBadRequestError('Join the room before reading messages')); return }
       const adapter = await deps.botService.createAdapter(bot)
       const messages = await adapter.getMessages(room.externalRoomId)
       res.json({ data: messages })
@@ -280,11 +280,11 @@ export const createRoomsController = (deps: RoomsControllerDeps): RoomsControlle
     try {
       const bot = req.bot
       const room = req.room
-      if (bot == null || room == null) return next(createNotFoundError('Room not found'))
-      if (room.status !== 'active') return next(createBadRequestError('Join the room before analyzing messages'))
+      if (bot == null || room == null) { next(createNotFoundError('Room not found')); return }
+      if (room.status !== 'active') { next(createBadRequestError('Join the room before analyzing messages')); return }
       const adapter = await deps.botService.createAdapter(bot)
       const messages = await adapter.getMessages(room.externalRoomId)
-      if (messages.length === 0) return next(createBadRequestError('No room messages are available yet'))
+      if (messages.length === 0) { next(createBadRequestError('No room messages are available yet')); return }
       const body = req.body as RoomAnalysisBody
       const result = await deps.aiService.analyzeRoom(bot, messages, body.question)
       res.json({ data: { ...result, messageCount: Math.min(messages.length, 250) } })
